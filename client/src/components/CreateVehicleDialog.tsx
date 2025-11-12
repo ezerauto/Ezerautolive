@@ -28,7 +28,7 @@ export function CreateVehicleDialog() {
       model: "",
       vin: "",
       purchasePrice: "0",
-      purchaseDate: new Date(),
+      purchaseDate: new Date().toISOString().split('T')[0] as any,
       status: "in_transit",
     },
   });
@@ -63,7 +63,14 @@ export function CreateVehicleDialog() {
         <DialogHeader>
           <DialogTitle>Add New Vehicle</DialogTitle>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-4">
+        <form onSubmit={form.handleSubmit((data) => {
+          console.log("Form data:", data);
+          console.log("Form errors:", form.formState.errors);
+          createMutation.mutate(data);
+        }, (errors) => {
+          console.log("Validation errors:", errors);
+          toast({ title: "Please fix validation errors", variant: "destructive" });
+        })} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="year">Year *</Label>
@@ -185,13 +192,13 @@ export function CreateVehicleDialog() {
             <div>
               <Label htmlFor="shipmentId">Assign to Shipment</Label>
               <Select
-                onValueChange={(value) => form.setValue("shipmentId", value || undefined)}
+                onValueChange={(value) => form.setValue("shipmentId", value === "none" ? undefined : value)}
               >
                 <SelectTrigger data-testid="select-shipment">
                   <SelectValue placeholder="Select shipment (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {shipments?.map((shipment) => (
                     <SelectItem key={shipment.id} value={shipment.id}>
                       {shipment.shipmentNumber} - {shipment.route}

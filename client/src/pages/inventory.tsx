@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Car, Truck, Package, CheckCircle2 } from "lucide-react";
+import { Car, Truck, Package, CheckCircle2, Plus } from "lucide-react";
 import { CreateVehicleDialog } from "@/components/CreateVehicleDialog";
 import type { Vehicle } from "@shared/schema";
 
@@ -25,13 +26,14 @@ const statusConfig = {
 
 export default function Inventory() {
   const [filter, setFilter] = useState<string>("all");
+  const queryKey = filter === "all" ? "/api/vehicles" : `/api/vehicles?filter=${filter}`;
   const { data: vehicles, isLoading } = useQuery<Vehicle[]>({
-    queryKey: ["/api/vehicles", filter],
+    queryKey: [queryKey],
   });
 
   const filteredVehicles = vehicles?.filter((v) => filter === "all" || v.status === filter);
 
-  const calculateDaysInInventory = (dateArrived: string | null) => {
+  const calculateDaysInInventory = (dateArrived: string | Date | null) => {
     if (!dateArrived) return 0;
     const arrived = new Date(dateArrived);
     const today = new Date();

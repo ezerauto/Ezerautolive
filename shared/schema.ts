@@ -64,6 +64,8 @@ export const insertShipmentSchema = createInsertSchema(shipments).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  shipmentDate: z.coerce.date(),
 });
 
 export type InsertShipment = z.infer<typeof insertShipmentSchema>;
@@ -109,6 +111,11 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  purchaseDate: z.coerce.date(),
+  dateShipped: z.coerce.date().optional().nullable(),
+  dateArrived: z.coerce.date().optional().nullable(),
+  saleDate: z.coerce.date().optional().nullable(),
 });
 
 export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
@@ -142,6 +149,9 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  dueDate: z.coerce.date(),
+  paidDate: z.coerce.date().optional().nullable(),
 });
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
@@ -175,6 +185,10 @@ export const insertContractSchema = createInsertSchema(contracts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  signedDate: z.coerce.date().optional().nullable(),
+  effectiveDate: z.coerce.date().optional().nullable(),
+  expirationDate: z.coerce.date().optional().nullable(),
 });
 
 export type InsertContract = z.infer<typeof insertContractSchema>;
@@ -210,6 +224,8 @@ export const insertCostSchema = createInsertSchema(costs).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  costDate: z.coerce.date(),
 });
 
 export type InsertCost = z.infer<typeof insertCostSchema>;
