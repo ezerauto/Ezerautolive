@@ -243,6 +243,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shipment contract routes
+  app.get('/api/shipments/:shipmentId/vehicles', isAuthenticated, async (req, res) => {
+    try {
+      const vehicles = await storage.getVehiclesByShipment(req.params.shipmentId);
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles for shipment:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
   app.get('/api/shipments/:shipmentId/contracts', isAuthenticated, async (req, res) => {
     try {
       const contracts = await storage.listShipmentContracts(req.params.shipmentId);

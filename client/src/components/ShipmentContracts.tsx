@@ -41,6 +41,8 @@ type Contract = {
   documentUrl: string | null;
   notes: string | null;
   createdAt: string;
+  relatedShipmentId: string | null;
+  relatedVehicleId: string | null;
 };
 
 const contractFormSchema = z.object({
@@ -53,7 +55,7 @@ const contractFormSchema = z.object({
 type ContractFormData = z.infer<typeof contractFormSchema>;
 
 type ContractType = {
-  type: 'purchase_agreement' | 'inspection';
+  type: 'purchase_agreement' | 'inspection' | 'sale';
   title: string;
   description: string;
   icon: typeof FileText;
@@ -72,7 +74,22 @@ const CONTRACT_TYPES: ContractType[] = [
     description: 'Confirms vehicles arrived in good condition',
     icon: CheckCircle,
   },
+  {
+    type: 'sale',
+    title: 'Sale Contracts',
+    description: 'Individual sale contracts for each vehicle (managed per vehicle)',
+    icon: FileText,
+  },
 ];
+
+type Vehicle = {
+  id: string;
+  vin: string;
+  make: string;
+  model: string;
+  year: number;
+  shipmentId: string;
+};
 
 export function ShipmentContracts({ shipmentId }: { shipmentId: string }) {
   const { toast } = useToast();
@@ -83,6 +100,10 @@ export function ShipmentContracts({ shipmentId }: { shipmentId: string }) {
 
   const { data: contracts, isLoading } = useQuery<Contract[]>({
     queryKey: ["/api/shipments", shipmentId, "contracts"],
+  });
+
+  const { data: vehicles, isLoading: vehiclesLoading } = useQuery<Vehicle[]>({
+    queryKey: ["/api/shipments", shipmentId, "vehicles"],
   });
 
   const form = useForm<ContractFormData>({
@@ -201,6 +222,108 @@ export function ShipmentContracts({ shipmentId }: { shipmentId: string }) {
       
       <div className="space-y-4">
         {CONTRACT_TYPES.map((contractType) => {
+          // Special rendering for sale contracts (per-vehicle)
+          if (contractType.type === 'sale') {
+            const Icon = contractType.icon;
+            const vehicleCount = vehicles?.length || 0;
+            
+            // Get all sale contracts and create a map by vehicleId
+            const saleContracts = contracts?.filter(c => c.type === 'sale') || [];
+            const contractsByVehicle = new Map(
+              saleContracts.map(c => [c.relatedVehicleId, c])
+            );
+            
+            // Count vehicles with completed sale contracts
+            const completedCount = vehicles?.filter(v => {
+              const contract = contractsByVehicle.get(v.id);
+              return contract && contract.documentUrl;
+            }).length || 0;
+            
+            return (
+              <div
+                key={contractType.type}
+                className="flex items-start gap-4 p-4 rounded-lg border"
+                data-testid={`contract-${contractType.type}`}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                  completedCount > 0 ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <h4 className="font-medium">{contractType.title}</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {completedCount}/{vehicleCount} Completed
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {contractType.description}
+                  </p>
+                  
+                  {vehiclesLoading ? (
+                    <Skeleton className="h-16" />
+                  ) : vehicleCount > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Sale contracts are managed per vehicle. Click on a vehicle to view or create its sale contract:
+                      </p>
+                      <div className="space-y-1">
+                        {vehicles?.map((vehicle) => {
+                          const vehicleContract = contractsByVehicle.get(vehicle.id);
+                          const hasDocument = vehicleContract?.documentUrl;
+                          
+                          return (
+                            <a
+                              key={vehicle.id}
+                              href={`/vehicles/${vehicle.id}`}
+                              className="flex items-center justify-between p-2 rounded hover:bg-muted/50 text-foreground border"
+                              data-testid={`link-vehicle-${vehicle.id}`}
+                            >
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="font-medium text-sm">
+                                  {vehicle.year} {vehicle.make} {vehicle.model}
+                                </span>
+                                {vehicleContract ? (
+                                  hasDocument ? (
+                                    <Badge variant="secondary" className="bg-success/10 text-success text-xs">
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Complete
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-warning/10 text-warning text-xs">
+                                      <AlertCircle className="h-3 w-3 mr-1" />
+                                      Pending Document
+                                    </Badge>
+                                  )
+                                ) : (
+                                  <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    No Contract
+                                  </Badge>
+                                )}
+                              </div>
+                              <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No vehicles in this shipment yet. Add vehicles to create sale contracts.
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          
+          // Normal rendering for shipment-level contracts (purchase_agreement, inspection)
           const existingContract = getContractForType(contractType.type);
           const Icon = contractType.icon;
           
@@ -343,21 +466,29 @@ export function ShipmentContracts({ shipmentId }: { shipmentId: string }) {
               <FormField
                 control={form.control}
                 name="contractDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contract Date</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
-                        onChange={(e) => field.onChange(new Date(e.target.value))}
-                        data-testid="input-date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  let dateValue = '';
+                  if (typeof field.value === 'string') {
+                    dateValue = field.value;
+                  } else if (field.value instanceof Date && !isNaN(field.value.getTime())) {
+                    dateValue = field.value.toISOString().split('T')[0];
+                  }
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Contract Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={dateValue}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          data-testid="input-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               
               <FormField

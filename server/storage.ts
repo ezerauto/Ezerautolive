@@ -152,6 +152,10 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(vehicles).orderBy(desc(vehicles.createdAt));
   }
 
+  async getVehiclesByShipment(shipmentId: string): Promise<Vehicle[]> {
+    return db.select().from(vehicles).where(eq(vehicles.shipmentId, shipmentId)).orderBy(desc(vehicles.createdAt));
+  }
+
   async updateVehicle(id: string, updates: Partial<InsertVehicle>): Promise<Vehicle> {
     const [vehicle] = await db
       .update(vehicles)
