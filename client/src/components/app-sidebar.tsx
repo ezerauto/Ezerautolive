@@ -1,10 +1,10 @@
 import {
-  LayoutDashboard,
+  BarChart3,
   Truck,
-  Grid3x3,
+  Warehouse,
   FileText,
-  TrendingUp,
-  CreditCard,
+  DollarSign,
+  Handshake,
   Receipt,
   User,
 } from "lucide-react";
@@ -27,43 +27,43 @@ import { Button } from "@/components/ui/button";
 
 const menuItems = [
   {
-    title: "Dashboard",
+    title: "The Books",
     url: "/",
-    icon: LayoutDashboard,
+    icon: BarChart3,
     testId: "link-dashboard",
   },
   {
-    title: "Shipments",
+    title: "Operations",
     url: "/shipments",
     icon: Truck,
     testId: "link-shipments",
   },
   {
-    title: "Inventory",
+    title: "The Vault",
     url: "/inventory",
-    icon: Grid3x3,
+    icon: Warehouse,
     testId: "link-inventory",
   },
   {
-    title: "Contracts",
+    title: "Arrangements",
     url: "/contracts",
     icon: FileText,
     testId: "link-contracts",
   },
   {
-    title: "Financials",
+    title: "The Take",
     url: "/financials",
-    icon: TrendingUp,
+    icon: DollarSign,
     testId: "link-financials",
   },
   {
-    title: "Payments",
+    title: "Collections",
     url: "/payments",
-    icon: CreditCard,
+    icon: Handshake,
     testId: "link-payments",
   },
   {
-    title: "Costs",
+    title: "The Ledger",
     url: "/costs",
     icon: Receipt,
     testId: "link-costs",
@@ -79,11 +79,11 @@ export function AppSidebar() {
       <SidebarHeader className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Truck className="h-6 w-6 text-primary-foreground" />
+            <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-base font-semibold">Import Tracker</h2>
-            <p className="text-xs text-muted-foreground">Partnership Dashboard</p>
+            <h2 className="text-base font-semibold">The Family Business</h2>
+            <p className="text-xs text-muted-foreground">Partnership Operations</p>
           </div>
         </div>
       </SidebarHeader>
@@ -91,7 +91,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Navigation
+            The Family
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

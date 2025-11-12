@@ -70,8 +70,8 @@ export default function Inventory() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Vehicle Inventory</h1>
-          <p className="text-muted-foreground">Manage all vehicles in the partnership</p>
+          <h1 className="text-3xl font-bold mb-2">The Vault</h1>
+          <p className="text-muted-foreground">Assets under our control</p>
         </div>
         <CreateVehicleDialog />
       </div>

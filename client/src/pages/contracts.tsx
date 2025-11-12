@@ -52,8 +52,8 @@ export default function Contracts() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Contracts & Documents</h1>
-          <p className="text-muted-foreground">Manage partnership agreements and sale documentation</p>
+          <h1 className="text-3xl font-bold mb-2">Arrangements</h1>
+          <p className="text-muted-foreground">Partnership agreements and documentation</p>
         </div>
         <Button data-testid="button-upload-contract" className="hover-elevate active-elevate-2">
           <Plus className="h-4 w-4 mr-2" />

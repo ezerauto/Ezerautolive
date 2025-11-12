@@ -80,8 +80,8 @@ export default function Dashboard() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>
-        <p className="text-muted-foreground">Track your vehicle import partnership performance</p>
+        <h1 className="text-3xl font-bold mb-2">The Books</h1>
+        <p className="text-muted-foreground">Financial overview of the family business</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

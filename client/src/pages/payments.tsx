@@ -48,8 +48,8 @@ export default function Payments() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Payments</h1>
-        <p className="text-muted-foreground">Track payment status and due dates</p>
+        <h1 className="text-3xl font-bold mb-2">Collections</h1>
+        <p className="text-muted-foreground">Track what's owed and when it's due</p>
       </div>
 
       {!payments || payments.length === 0 ? (

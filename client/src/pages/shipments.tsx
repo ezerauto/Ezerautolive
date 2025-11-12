@@ -57,8 +57,8 @@ export default function Shipments() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Shipments</h1>
-          <p className="text-muted-foreground">Track vehicle shipments from USA to Honduras</p>
+          <h1 className="text-3xl font-bold mb-2">Operations</h1>
+          <p className="text-muted-foreground">Track all shipments from the States to Honduras</p>
         </div>
         <CreateShipmentDialog />
       </div>

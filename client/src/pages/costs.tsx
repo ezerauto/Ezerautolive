@@ -55,8 +55,8 @@ export default function Costs() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Cost Documentation</h1>
-          <p className="text-muted-foreground">Upload and manage receipts and expense documentation</p>
+          <h1 className="text-3xl font-bold mb-2">The Ledger</h1>
+          <p className="text-muted-foreground">All expenses and receipts</p>
         </div>
         <Button data-testid="button-upload-receipt" className="hover-elevate active-elevate-2">
           <Plus className="h-4 w-4 mr-2" />
