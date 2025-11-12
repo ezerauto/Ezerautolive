@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertShipmentSchema, insertVehicleSchema, bulkImportVehicleSchema, insertPaymentSchema, insertContractSchema, insertCostSchema } from "@shared/schema";
+import { insertShipmentSchema, insertVehicleSchema, updateVehicleSchema, bulkImportVehicleSchema, insertPaymentSchema, insertContractSchema, insertCostSchema } from "@shared/schema";
 
 const GOAL_AMOUNT = 150000;
 
@@ -295,6 +295,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error updating vehicle:", error);
       res.status(400).json({ message: error.message || "Failed to update vehicle" });
+    }
+  });
+
+  app.patch('/api/vehicles/:id', isAuthenticated, async (req, res) => {
+    try {
+      const validated = updateVehicleSchema.parse(req.body);
+      const updated = await storage.updateVehicle(req.params.id, validated);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating vehicle:", error);
+      const message = error.errors 
+        ? error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
+        : error.message || "Failed to update vehicle";
+      res.status(400).json({ message });
     }
   });
 

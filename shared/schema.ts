@@ -137,7 +137,25 @@ export const bulkImportVehicleSchema = z.object({
   minimumPrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
 });
 
+export const updateVehicleSchema = insertVehicleSchema.partial({
+  shipmentId: true,
+  odometer: true,
+  color: true,
+  purchaseLocation: true,
+  billOfSaleUrl: true,
+  photoUrls: true,
+  targetSalePrice: true,
+  minimumPrice: true,
+  actualSalePrice: true,
+  saleDate: true,
+  buyerName: true,
+  buyerId: true,
+  dateArrived: true,
+  dateShipped: true,
+});
+
 export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type UpdateVehicle = z.infer<typeof updateVehicleSchema>;
 export type BulkImportVehicle = z.infer<typeof bulkImportVehicleSchema>;
 export type Vehicle = typeof vehicles.$inferSelect;
 

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Car, Truck, Package, CheckCircle2 } from "lucide-react";
 import type { Vehicle } from "@shared/schema";
+import { EditVehicleDialog } from "@/components/EditVehicleDialog";
 
 const statusConfig = {
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
@@ -73,10 +74,13 @@ export default function VehicleDetail() {
             <h1 className="text-3xl font-bold mb-2">{vehicle.year} {vehicle.make} {vehicle.model}</h1>
             <p className="text-muted-foreground">VIN: {vehicle.vin}</p>
           </div>
-          <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
-            <StatusIcon className="h-3 w-3 mr-1" />
-            {statusInfo.label}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <EditVehicleDialog vehicle={vehicle} />
+            <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
+              <StatusIcon className="h-3 w-3 mr-1" />
+              {statusInfo.label}
+            </Badge>
+          </div>
         </div>
       </div>
 
