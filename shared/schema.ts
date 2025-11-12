@@ -217,6 +217,9 @@ export const contracts = pgTable("contracts", {
   uniqueIndex("uniq_shipment_contract_type")
     .on(table.relatedShipmentId, table.type)
     .where(sql`${table.relatedShipmentId} IS NOT NULL`),
+  uniqueIndex("uniq_vehicle_contract_type")
+    .on(table.relatedVehicleId, table.type)
+    .where(sql`${table.relatedVehicleId} IS NOT NULL`),
 ]);
 
 export const contractsRelations = relations(contracts, ({ one }) => ({

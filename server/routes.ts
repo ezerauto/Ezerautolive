@@ -397,6 +397,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Vehicle contract routes
+  app.get('/api/vehicles/:vehicleId/contracts', isAuthenticated, async (req, res) => {
+    try {
+      const contracts = await storage.listVehicleContracts(req.params.vehicleId);
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching vehicle contracts:", error);
+      res.status(500).json({ message: "Failed to fetch vehicle contracts" });
+    }
+  });
+
+  app.post('/api/vehicles/:vehicleId/contracts', isAuthenticated, async (req, res) => {
+    try {
+      const vehicleContractSchema = insertContractSchema.pick({
+        title: true,
+        type: true,
+        status: true,
+        parties: true,
+        contractDate: true,
+        documentUrl: true,
+        salePrice: true,
+        profit: true,
+        notes: true,
+      }).extend({
+        type: z.enum(['sale']),
+        contractDate: z.coerce.date(),
+      });
+
+      const validated = vehicleContractSchema.parse(req.body);
+
+      // Check for existing sales contract
+      const existing = await storage.getVehicleContractByType(
+        req.params.vehicleId,
+        validated.type
+      );
+      
+      if (existing) {
+        return res.status(409).json({
+          message: `A ${validated.type} contract already exists for this vehicle. Use PATCH to update it.`,
+          existingId: existing.id
+        });
+      }
+
+      // Create contract with vehicle reference
+      const contract = await storage.createContract({
+        ...validated,
+        relatedShipmentId: null,
+        relatedVehicleId: req.params.vehicleId,
+      });
+
+      res.status(201).json(contract);
+    } catch (error: any) {
+      console.error("Error creating vehicle contract:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message || "Failed to create contract" });
+    }
+  });
+
   // Vehicle routes
   app.get('/api/vehicles', isAuthenticated, async (req, res) => {
     try {
@@ -436,6 +496,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/vehicles/:id', isAuthenticated, async (req, res) => {
     try {
       const updates = req.body;
+      
+      // If attempting to mark vehicle as sold, validate sales contract exists
+      if (updates.status === 'sold') {
+        const salesContract = await storage.getVehicleContractByType(req.params.id, 'sale');
+        
+        if (!salesContract) {
+          return res.status(400).json({
+            message: "Sales contract is required before marking vehicle as sold",
+            code: "CONTRACT_REQUIRED"
+          });
+        }
+        
+        if (!salesContract.documentUrl) {
+          return res.status(400).json({
+            message: "Sales contract document must be uploaded before marking vehicle as sold",
+            code: "CONTRACT_DOCUMENT_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+      }
+      
       const vehicle = await storage.updateVehicle(req.params.id, updates);
       
       // If vehicle was sold, create payment record and profit distribution

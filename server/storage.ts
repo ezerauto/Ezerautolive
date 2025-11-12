@@ -70,6 +70,8 @@ export interface IStorage {
   listContracts(): Promise<Contract[]>;
   listShipmentContracts(shipmentId: string): Promise<Contract[]>;
   getShipmentContractByType(shipmentId: string, type: string): Promise<Contract | undefined>;
+  listVehicleContracts(vehicleId: string): Promise<Contract[]>;
+  getVehicleContractByType(vehicleId: string, type: string): Promise<Contract | undefined>;
   updateContract(id: string, updates: Partial<InsertContract>): Promise<Contract>;
   deleteContract(id: string): Promise<void>;
   
@@ -289,6 +291,26 @@ export class DatabaseStorage implements IStorage {
       .from(contracts)
       .where(and(
         eq(contracts.relatedShipmentId, shipmentId),
+        eq(contracts.type, type)
+      ))
+      .limit(1);
+    return contract;
+  }
+
+  async listVehicleContracts(vehicleId: string): Promise<Contract[]> {
+    return db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.relatedVehicleId, vehicleId))
+      .orderBy(desc(contracts.createdAt));
+  }
+
+  async getVehicleContractByType(vehicleId: string, type: string): Promise<Contract | undefined> {
+    const [contract] = await db
+      .select()
+      .from(contracts)
+      .where(and(
+        eq(contracts.relatedVehicleId, vehicleId),
         eq(contracts.type, type)
       ))
       .limit(1);
