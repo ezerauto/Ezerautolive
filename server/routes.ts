@@ -82,7 +82,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const shipment of allShipments) {
         const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
         const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
-        const totalShipmentCost = shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+        
+        // Combine shipment built-in cost fields with costs table entries
+        const totalShipmentCost = 
+          Number(shipment.groundTransportCost || 0) +
+          Number(shipment.customsBrokerFees || 0) +
+          Number(shipment.oceanFreightCost || 0) +
+          Number(shipment.importFees || 0) +
+          shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
         
         if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
           // Allocate shipment costs proportionally based on vehicle purchase price
