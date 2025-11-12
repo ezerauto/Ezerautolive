@@ -53,7 +53,7 @@ export default function VehicleDetail() {
     );
   }
 
-  const statusInfo = statusConfig[vehicle.status as keyof typeof statusConfig];
+  const statusInfo = statusConfig[vehicle.status as keyof typeof statusConfig] || statusConfig.in_stock;
   const StatusIcon = statusInfo.icon;
   const daysInInventory = vehicle.dateArrived 
     ? Math.ceil((Date.now() - new Date(vehicle.dateArrived).getTime()) / (1000 * 60 * 60 * 24))
