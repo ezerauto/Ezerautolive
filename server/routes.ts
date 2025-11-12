@@ -75,52 +75,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allCosts = await storage.listCosts();
       const allShipments = await storage.listShipments();
       
-      // Calculate total costs per vehicle (purchase price + vehicle costs + allocated shipment costs)
-      const vehicleTotalCosts = new Map<string, number>();
-      
-      // First, allocate shipment-level costs to vehicles proportionally
-      for (const shipment of allShipments) {
-        const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
-        const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
-        
-        // Combine shipment built-in cost fields with costs table entries
-        const totalShipmentCost = 
-          Number(shipment.groundTransportCost || 0) +
-          Number(shipment.customsBrokerFees || 0) +
-          Number(shipment.oceanFreightCost || 0) +
-          Number(shipment.importFees || 0) +
-          shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        
-        if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
-          // Allocate shipment costs proportionally based on vehicle purchase price
-          const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
-          
-          for (const vehicle of shipmentVehicles) {
-            const vehicleShare = totalPurchaseValue > 0 
-              ? (Number(vehicle.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
-              : totalShipmentCost / shipmentVehicles.length; // Equal split if no purchase prices
-            
-            const current = vehicleTotalCosts.get(vehicle.id) || 0;
-            vehicleTotalCosts.set(vehicle.id, current + vehicleShare);
-          }
-        }
-      }
-      
-      // Now add purchase price and vehicle-specific costs
-      for (const vehicle of allVehicles) {
-        // Start with purchase price
-        let totalCost = Number(vehicle.purchasePrice || 0);
-        
-        // Add all costs directly associated with this vehicle
-        const vehicleCosts = allCosts.filter(c => c.vehicleId === vehicle.id);
-        totalCost += vehicleCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        
-        // Add any allocated shipment costs from above
-        const allocatedShipmentCost = vehicleTotalCosts.get(vehicle.id) || 0;
-        totalCost += allocatedShipmentCost;
-        
-        vehicleTotalCosts.set(vehicle.id, totalCost);
-      }
+      // Use shared cost calculation utility
+      const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+      const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
       
       // Calculate metrics including ALL costs
       const totalInvestment = Array.from(vehicleTotalCosts.values()).reduce((sum, cost) => sum + cost, 0);
@@ -488,38 +445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const allCosts = await storage.listCosts();
         const allShipments = await storage.listShipments();
         
-        // Calculate vehicle total costs
-        const vehicleTotalCosts = new Map<string, number>();
-        for (const shipment of allShipments) {
-          const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
-          const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
-          const totalShipmentCost = 
-            Number(shipment.groundTransportCost || 0) +
-            Number(shipment.customsBrokerFees || 0) +
-            Number(shipment.oceanFreightCost || 0) +
-            Number(shipment.importFees || 0) +
-            shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-          
-          if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
-            const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
-            for (const v of shipmentVehicles) {
-              const vehicleShare = totalPurchaseValue > 0 
-                ? (Number(v.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
-                : totalShipmentCost / shipmentVehicles.length;
-              const current = vehicleTotalCosts.get(v.id) || 0;
-              vehicleTotalCosts.set(v.id, current + vehicleShare);
-            }
-          }
-        }
-        
-        for (const v of allVehicles) {
-          let totalCost = Number(v.purchasePrice || 0);
-          const vCosts = allCosts.filter(c => c.vehicleId === v.id);
-          totalCost += vCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-          const allocatedShipmentCost = vehicleTotalCosts.get(v.id) || 0;
-          totalCost += allocatedShipmentCost;
-          vehicleTotalCosts.set(v.id, totalCost);
-        }
+        // Use shared cost calculation utility
+        const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+        const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
         
         // Calculate cumulative reinvestment from previous sales
         let cumulativeReinvestment = 0;
@@ -845,9 +773,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/financials', isAuthenticated, async (req, res) => {
     try {
       const allVehicles = await storage.listVehicles();
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
+      
+      // Use shared cost calculation utility
+      const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+      const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
+      
       const soldVehicles = allVehicles.filter(v => v.status === 'sold');
       const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold');
-      const currentInventoryValue = unsoldVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
+      const currentInventoryValue = unsoldVehicles.reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0);
       
       const payments = await storage.listPayments();
       
@@ -887,10 +822,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sortedShipments.forEach(([shipmentKey, group]) => {
         const vehicles = group.vehicles;
         
-        // Calculate total shipment profit
-        const shipmentProfit = vehicles.reduce((sum, v) => 
-          sum + (Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0)), 0
-        );
+        // Calculate total shipment profit using ledger-based total costs
+        const shipmentProfit = vehicles.reduce((sum, v) => {
+          const totalCost = vehicleTotalCosts.get(v.id) || 0;
+          return sum + (Number(v.actualSalePrice || 0) - totalCost);
+        }, 0);
         
         // Calculate distribution using cumulative reinvestment progress
         const distribution = calculateProfitDistribution(shipmentProfit, cumulativeReinvestment);
@@ -916,10 +852,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const shipmentVehicles = shipmentGroups.get(shipmentKey)!.vehicles;
         const shipmentDistribution = shipmentDistributions.get(shipmentKey)!;
         
-        const vehicleProfit = Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0);
-        const shipmentTotalProfit = shipmentVehicles.reduce((sum, sv) => 
-          sum + (Number(sv.actualSalePrice || 0) - Number(sv.purchasePrice || 0)), 0
-        );
+        const totalCost = vehicleTotalCosts.get(v.id) || 0;
+        const vehicleProfit = Number(v.actualSalePrice || 0) - totalCost;
+        const shipmentTotalProfit = shipmentVehicles.reduce((sum, sv) => {
+          const svCost = vehicleTotalCosts.get(sv.id) || 0;
+          return sum + (Number(sv.actualSalePrice || 0) - svCost);
+        }, 0);
         
         // Allocate shipment distribution proportionally to this vehicle
         const vehicleProportion = shipmentTotalProfit > 0 ? vehicleProfit / shipmentTotalProfit : 0;
@@ -932,7 +870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           vehicleName: `${v.year} ${v.make} ${v.model}`,
           salePrice: Number(v.actualSalePrice || 0),
-          totalCost: Number(v.purchasePrice || 0),
+          totalCost,
           grossProfit: vehicleProfit,
           reinvestment: vehicleReinvestment,
           dominickShare: vehicleDominickShare,

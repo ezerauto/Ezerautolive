@@ -1,6 +1,7 @@
 import { storage } from "../storage";
 import type { Vehicle, Cost, Shipment } from "@shared/schema";
 import { nanoid } from "nanoid";
+import { calculateSingleVehicleTotalCost } from "./costCalculation";
 
 const GOAL_AMOUNT = 150000;
 
@@ -18,45 +19,6 @@ function calculateProfitDistribution(grossProfit: number, cumulativeReinvestment
   }
 }
 
-function calculateVehicleTotalCost(
-  vehicle: Vehicle,
-  allVehicles: Vehicle[],
-  allCosts: Cost[],
-  allShipments: Shipment[]
-): number {
-  let totalCost = Number(vehicle.purchasePrice || 0);
-  
-  // Add vehicle-specific costs
-  const vehicleCosts = allCosts.filter(c => c.vehicleId === vehicle.id);
-  totalCost += vehicleCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-  
-  // Add proportional shipment costs
-  if (vehicle.shipmentId) {
-    const shipment = allShipments.find(s => s.id === vehicle.shipmentId);
-    if (shipment) {
-      const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
-      const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
-      
-      const totalShipmentCost = 
-        Number(shipment.groundTransportCost || 0) +
-        Number(shipment.customsBrokerFees || 0) +
-        Number(shipment.oceanFreightCost || 0) +
-        Number(shipment.importFees || 0) +
-        shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-      
-      if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
-        const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
-        const vehicleShare = totalPurchaseValue > 0
-          ? (Number(vehicle.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
-          : totalShipmentCost / shipmentVehicles.length;
-        totalCost += vehicleShare;
-      }
-    }
-  }
-  
-  return totalCost;
-}
-
 function calculateCumulativeReinvestment(
   allVehicles: Vehicle[],
   allCosts: Cost[],
@@ -71,7 +33,7 @@ function calculateCumulativeReinvestment(
   );
   
   for (const v of soldVehicles) {
-    const totalCost = calculateVehicleTotalCost(v, allVehicles, allCosts, allShipments);
+    const totalCost = calculateSingleVehicleTotalCost(v, allVehicles, allCosts, allShipments);
     const profit = Number(v.actualSalePrice || 0) - totalCost;
     if (profit > 0) {
       cumulative += profit * 0.6;
@@ -95,8 +57,8 @@ export async function generateProfitDistribution(
     return;
   }
   
-  // Calculate total cost
-  const totalCost = calculateVehicleTotalCost(vehicle, allVehicles, allCosts, allShipments);
+  // Calculate total cost using shared utility
+  const totalCost = calculateSingleVehicleTotalCost(vehicle, allVehicles, allCosts, allShipments);
   
   // Calculate gross profit
   const grossProfit = Number(vehicle.actualSalePrice || 0) - totalCost;
