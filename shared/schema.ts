@@ -269,9 +269,160 @@ export const insertCostSchema = createInsertSchema(costs).omit({
 export type InsertCost = z.infer<typeof insertCostSchema>;
 export type Cost = typeof costs.$inferSelect;
 
+// Contract Templates table
+export const contractTemplates = pgTable("contract_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }).notNull(),
+  templateFileUrl: text("template_file_url"),
+  requiredFields: text("required_fields").array(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertContractTemplateSchema = createInsertSchema(contractTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractTemplate = z.infer<typeof insertContractTemplateSchema>;
+export type ContractTemplate = typeof contractTemplates.$inferSelect;
+
+// Contract Workflows table
+export const contractWorkflows = pgTable("contract_workflows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  workflowType: varchar("workflow_type", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default('draft'),
+  shipmentId: varchar("shipment_id").references(() => shipments.id, { onDelete: 'set null' }),
+  startDate: timestamp("start_date"),
+  completionDate: timestamp("completion_date"),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const contractWorkflowsRelations = relations(contractWorkflows, ({ one, many }) => ({
+  shipment: one(shipments, {
+    fields: [contractWorkflows.shipmentId],
+    references: [shipments.id],
+  }),
+  creator: one(users, {
+    fields: [contractWorkflows.createdBy],
+    references: [users.id],
+  }),
+  phases: many(workflowPhases),
+}));
+
+export const insertContractWorkflowSchema = createInsertSchema(contractWorkflows).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startDate: z.coerce.date().optional().nullable(),
+  completionDate: z.coerce.date().optional().nullable(),
+});
+
+export type InsertContractWorkflow = z.infer<typeof insertContractWorkflowSchema>;
+export type ContractWorkflow = typeof contractWorkflows.$inferSelect;
+
+// Workflow Phases table
+export const workflowPhases = pgTable("workflow_phases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workflowId: varchar("workflow_id").references(() => contractWorkflows.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  phaseType: varchar("phase_type", { length: 100 }).notNull(),
+  sequenceOrder: integer("sequence_order").notNull(),
+  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  dueDate: timestamp("due_date"),
+  completedDate: timestamp("completed_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const workflowPhasesRelations = relations(workflowPhases, ({ one, many }) => ({
+  workflow: one(contractWorkflows, {
+    fields: [workflowPhases.workflowId],
+    references: [contractWorkflows.id],
+  }),
+  documents: many(phaseDocuments),
+}));
+
+export const insertWorkflowPhaseSchema = createInsertSchema(workflowPhases).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  dueDate: z.coerce.date().optional().nullable(),
+  completedDate: z.coerce.date().optional().nullable(),
+});
+
+export type InsertWorkflowPhase = z.infer<typeof insertWorkflowPhaseSchema>;
+export type WorkflowPhase = typeof workflowPhases.$inferSelect;
+
+// Phase Documents table
+export const phaseDocuments = pgTable("phase_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phaseId: varchar("phase_id").references(() => workflowPhases.id, { onDelete: 'cascade' }).notNull(),
+  templateId: varchar("template_id").references(() => contractTemplates.id, { onDelete: 'set null' }),
+  vehicleId: varchar("vehicle_id").references(() => vehicles.id, { onDelete: 'set null' }),
+  documentName: varchar("document_name", { length: 200 }).notNull(),
+  documentType: varchar("document_type", { length: 100 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  documentUrl: text("document_url"),
+  signedDocumentUrl: text("signed_document_url"),
+  signingService: varchar("signing_service", { length: 50 }),
+  envelopeId: varchar("envelope_id", { length: 200 }),
+  signingUrl: text("signing_url"),
+  sentForSigningDate: timestamp("sent_for_signing_date"),
+  signedDate: timestamp("signed_date"),
+  signers: text("signers").array(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const phaseDocumentsRelations = relations(phaseDocuments, ({ one }) => ({
+  phase: one(workflowPhases, {
+    fields: [phaseDocuments.phaseId],
+    references: [workflowPhases.id],
+  }),
+  template: one(contractTemplates, {
+    fields: [phaseDocuments.templateId],
+    references: [contractTemplates.id],
+  }),
+  vehicle: one(vehicles, {
+    fields: [phaseDocuments.vehicleId],
+    references: [vehicles.id],
+  }),
+}));
+
+export const insertPhaseDocumentSchema = createInsertSchema(phaseDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sentForSigningDate: z.coerce.date().optional().nullable(),
+  signedDate: z.coerce.date().optional().nullable(),
+});
+
+export type InsertPhaseDocument = z.infer<typeof insertPhaseDocumentSchema>;
+export type PhaseDocument = typeof phaseDocuments.$inferSelect;
+
 // Status types
 export type ShipmentStatus = 'in_transit' | 'arrived' | 'customs_cleared' | 'completed';
 export type VehicleStatus = 'in_transit' | 'in_stock' | 'sold';
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 export type ContractStatus = 'active' | 'pending' | 'completed';
 export type CostCategory = 'vehicle_purchase' | 'ground_transport_denver_florida' | 'customs_broker' | 'ocean_freight' | 'importer_registration' | 'bill_of_sale' | 'bill_of_lading' | 'other';
+export type WorkflowStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type PhaseStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
+export type DocumentStatus = 'pending' | 'sent_for_signing' | 'signed' | 'declined' | 'expired';
+export type WorkflowType = 'shipment' | 'vehicle_sale' | 'operational_renewal';
+export type PhaseType = 'pre_shipment' | 'arrival_inspection' | 'sale_closure' | 'operational_renewal';
+export type DocumentType = 'price_agreement' | 'inspection_receipt' | 'sale_contract' | 'operational_agreement' | 'customs_declaration' | 'cost_breakdown' | 'wire_transfer_info' | 'other';
