@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import { z } from "zod";
 import { 
   insertShipmentSchema, 
   insertVehicleSchema, 
@@ -238,6 +239,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting shipment:", error);
       res.status(500).json({ message: "Failed to delete shipment" });
+    }
+  });
+
+  // Shipment contract routes
+  app.get('/api/shipments/:shipmentId/contracts', isAuthenticated, async (req, res) => {
+    try {
+      const contracts = await storage.listShipmentContracts(req.params.shipmentId);
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching shipment contracts:", error);
+      res.status(500).json({ message: "Failed to fetch contracts" });
+    }
+  });
+
+  app.post('/api/shipments/:shipmentId/contracts', isAuthenticated, async (req, res) => {
+    try {
+      const shipmentContractSchema = insertContractSchema.pick({
+        title: true,
+        type: true,
+        status: true,
+        parties: true,
+        contractDate: true,
+        documentUrl: true,
+        salePrice: true,
+        profit: true,
+        notes: true,
+      }).extend({
+        type: z.enum(['purchase_agreement', 'inspection', 'sale']),
+        contractDate: z.coerce.date(),
+      });
+
+      const validated = shipmentContractSchema.parse(req.body);
+
+      // Block sale contracts from shipment endpoint
+      if (validated.type === 'sale') {
+        return res.status(400).json({
+          message: "Sale contracts must be created via vehicle endpoints"
+        });
+      }
+
+      // Check for existing singleton contract
+      if (['purchase_agreement', 'inspection'].includes(validated.type)) {
+        const existing = await storage.getShipmentContractByType(
+          req.params.shipmentId,
+          validated.type
+        );
+        
+        if (existing) {
+          return res.status(409).json({
+            message: `A ${validated.type} contract already exists for this shipment. Use PATCH to update it.`,
+            existingId: existing.id
+          });
+        }
+      }
+
+      // Create contract with shipment reference
+      const contract = await storage.createContract({
+        ...validated,
+        relatedShipmentId: req.params.shipmentId,
+        relatedVehicleId: null,
+      });
+
+      res.status(201).json(contract);
+    } catch (error: any) {
+      console.error("Error creating shipment contract:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message || "Failed to create contract" });
+    }
+  });
+
+  app.patch('/api/contracts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getContract(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      const updateSchema = z.object({
+        title: z.string().optional(),
+        status: z.string().optional(),
+        documentUrl: z.string().optional(),
+        parties: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+      });
+
+      const validated = updateSchema.parse(req.body);
+
+      // Block attempts to change immutable fields
+      if ('type' in req.body || 'relatedShipmentId' in req.body || 'relatedVehicleId' in req.body) {
+        return res.status(400).json({
+          message: "Cannot change contract type or related entity. Delete and recreate if needed."
+        });
+      }
+
+      const updated = await storage.updateContract(req.params.id, validated);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating contract:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: error.message || "Failed to update contract" });
+    }
+  });
+
+  app.delete('/api/contracts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const existing = await storage.getContract(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      await storage.deleteContract(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      res.status(500).json({ message: "Failed to delete contract" });
     }
   });
 
