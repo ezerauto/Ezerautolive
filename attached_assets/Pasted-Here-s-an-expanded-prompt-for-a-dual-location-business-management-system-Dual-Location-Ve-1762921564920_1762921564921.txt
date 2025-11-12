@@ -1,0 +1,1175 @@
+Here's an expanded prompt for a dual-location business management system:
+
+---
+
+# **Dual-Location Vehicle Business Platform - Complete System Design**
+
+## **Business Model Overview**
+
+**Two-Location Operation:**
+1. **US Dealership Side** (Colorado/Nebraska)
+   - Purchase vehicles at auctions/deals
+   - Manage US inventory
+   - Prepare vehicles for local sale OR shipment to Honduras
+   - Create and track shipments to Honduras
+   - Coordinate with shippers and brokers
+
+2. **Honduras Import Side** (Roatán)
+   - Receive shipped vehicles
+   - Manage Honduras inventory
+   - Sell vehicles locally
+   - Track partnership profits with Tony
+   - Process payments
+
+**Integration:** Vehicles flow from US → Honduras, with complete tracking and documentation at each stage.
+
+---
+
+## **User System & Privacy**
+
+### **User Roles & Permissions**
+
+**1. ADMIN (Dominick)**
+- Full access to everything
+- US dealership management
+- Honduras partnership management
+- All financial data
+- User management
+- Can see and do everything
+
+**2. US DEALERSHIP MANAGER**
+- Full access to US side only
+- Purchase vehicles
+- Create shipments to Honduras
+- Manage US inventory
+- View US financials
+- Cannot see Honduras partnership profit splits
+
+**3. HONDURAS PARTNER (Tony)**
+- Access to Honduras side only
+- View received inventory
+- Record sales
+- View his payment statements
+- Upload documents
+- Cannot see US dealership operations or purchase prices
+
+**4. ACCOUNTANT/BOOKKEEPER**
+- View-only access to financials
+- Generate reports
+- Export data
+- Cannot modify inventory or prices
+
+**5. LIMITED USER (Staff)**
+- Can update vehicle status
+- Upload documents
+- View assigned vehicles only
+- Cannot see financials
+
+### **Authentication & Security**
+
+**Sign Up Process:**
+```
+Sign Up Page:
+├── Email Address
+├── Password (strong requirements)
+├── Confirm Password
+├── Full Name
+├── Phone Number
+├── Role Request (dropdown - requires admin approval)
+├── Company/Location (US Dealership / Honduras Partnership)
+└── [Create Account] (Pending approval)
+
+Admin Approval Flow:
+├── Admin receives notification of new signup
+├── Admin reviews user information
+├── Admin assigns role and permissions
+├── Admin activates account
+└── User receives activation email
+```
+
+**Security Features:**
+- Email verification required
+- Two-factor authentication (optional but recommended)
+- Strong password requirements (min 12 chars, mix of characters)
+- Session timeout after 30 minutes of inactivity
+- Audit log of all user actions
+- IP address logging
+- Failed login attempt tracking
+- Encrypted data storage
+- Regular automated backups
+
+**Privacy Controls:**
+- Role-based data masking (Tony can't see purchase prices)
+- Document access permissions (some docs only for admins)
+- Financial data segregation (US vs Honduras profits separate)
+- Secure document sharing with expiring links
+
+---
+
+## **Enhanced System Architecture**
+
+### **DASHBOARD - Location-Aware Home**
+
+**User sees different dashboard based on role:**
+
+**ADMIN Dashboard (Dominick):**
+```
+Top Navigation:
+[US Dealership] [Honduras Partnership] [Consolidated View] [Admin Panel]
+
+Consolidated Metrics:
+├── Total Business Value: $XXX,XXX
+│   ├── US Inventory: $XX,XXX (12 vehicles)
+│   └── Honduras Inventory: $XX,XXX (5 vehicles)
+├── Total Profit (All-Time): $XX,XXX
+│   ├── US Dealership Profit: $XX,XXX
+│   └── Honduras Partnership Profit: $XX,XXX
+├── Active Shipments: 2 shipments in transit
+└── Pending Actions: 3 items need attention
+
+Quick Links:
+├── [Create New Shipment to Honduras]
+├── [Add Vehicle to US Inventory]
+├── [Record Honduras Sale]
+└── [Generate Consolidated Report]
+
+Recent Activity Feed:
+├── Vehicle #1234 sold in Honduras - $15,000 (2 hours ago)
+├── Shipment SH-008 departed Florida port (1 day ago)
+├── 3 vehicles added to US inventory (2 days ago)
+└── Payment received from Tony - $1,215 (3 days ago)
+```
+
+**US Dealership Manager Dashboard:**
+```
+US Dealership Metrics Only:
+├── US Inventory Count: 12 vehicles
+├── US Inventory Value: $XX,XXX
+├── This Month Sales: X vehicles, $XX,XXX revenue
+├── Pending Shipments to Honduras: 2 shipments
+└── Vehicles Ready to Ship: 5 vehicles
+
+Quick Actions:
+├── [Add New Vehicle]
+├── [Create Shipment to Honduras]
+├── [Mark Vehicle Sold (US)]
+└── [View US Inventory]
+```
+
+**Honduras Partner Dashboard (Tony):**
+```
+Honduras Partnership Metrics:
+├── Current Inventory: 5 vehicles, $40,457 total cost
+├── My Lifetime Earnings: $XX,XXX
+├── Pending Payments: $X,XXX (due in 3 days)
+├── Vehicles Sold: X vehicles
+└── Progress to $150K Goal: [Progress Bar]
+
+Quick Actions:
+├── [Record New Sale]
+├── [View My Payments]
+├── [Upload Documents]
+└── [View Current Inventory]
+
+My Recent Activity:
+├── Sold Cherokee - awaiting payment confirmation
+├── Received shipment SH-007 - inspection pending
+└── Payment sent for Silverado sale
+```
+
+---
+
+## **Module 1: US DEALERSHIP MANAGEMENT**
+
+### **A. US Vehicle Inventory**
+
+**Vehicle Entry Form:**
+```
+Add New Vehicle to US Inventory:
+
+Basic Information:
+├── Year: [____]
+├── Make: [____]
+├── Model: [____]
+├── VIN: [____________________]
+├── Odometer: [______] miles
+├── Color: [____]
+├── Upload Photos: [Drag & Drop Area]
+
+Purchase Information:
+├── Purchase Date: [Date Picker]
+├── Purchase Location: [Auction/Dealer/Private]
+├── Purchase Price: $[______]
+├── Purchase Receipt: [Upload PDF]
+├── Notes: [Text Area]
+
+Current Status:
+├── Condition: [Excellent / Good / Fair / Needs Repair]
+├── Title Status: [Clean / Salvage / Rebuilt]
+├── Title In Hand: [Yes / No]
+├── Location: [Colorado / Nebraska / Florida Prep]
+
+Intended Destination:
+○ Sell in US
+○ Ship to Honduras
+○ Undecided
+
+If Shipping to Honduras:
+├── Target Honduras Sale Price: $[______]
+├── Estimated Total Cost: $[______] (auto-calculated later)
+└── Add to Shipment: [Select Shipment or "Create New"]
+
+[Save to US Inventory]
+```
+
+**US Inventory List View:**
+```
+Filters:
+├── Location: [All / Colorado / Nebraska / Florida Prep / In Transit]
+├── Destination: [All / Sell in US / Ship to Honduras / Undecided]
+├── Status: [All / Available / Pending Sale / Sold / Assigned to Shipment]
+└── Search: [VIN, Make, Model]
+
+Table Columns:
+├── Photo (thumbnail)
+├── Year/Make/Model
+├── VIN (last 6)
+├── Purchase Price
+├── Purchase Date
+├── Current Location
+├── Destination
+├── Status
+└── Actions [View / Edit / Add to Shipment / Mark Sold]
+
+Bulk Actions:
+├── [Select Multiple]
+└── [Add Selected to Shipment]
+```
+
+**Individual US Vehicle Detail:**
+```
+Vehicle Profile (US Side):
+├── Photo Gallery (multiple photos)
+├── Full Specifications
+├── Purchase Information
+│   ├── Purchase Price: $X,XXX
+│   ├── Purchase Date & Location
+│   └── Purchase Receipt [View PDF]
+
+Current Status:
+├── Location: Colorado
+├── Title Status: Clean title in hand
+├── Condition Report: Excellent
+├── Days in US Inventory: 12 days
+
+Intended Destination: Ship to Honduras
+├── Reason: Higher profit margin in Honduras market
+├── Target Honduras Sale: $14,807.69
+└── Assigned to Shipment: SH-008 (departs Dec 15)
+
+History Log:
+├── Nov 28: Purchased at auction - $4,250
+├── Nov 29: Transported to prep facility
+├── Dec 1: Title received
+├── Dec 5: Assigned to shipment SH-008
+└── Dec 15: Scheduled departure to Florida
+
+Actions:
+├── [Edit Details]
+├── [Remove from Shipment]
+├── [Change Destination to US Sale]
+├── [Upload Additional Photos]
+└── [Add Notes]
+```
+
+### **B. US Sales (Local Sales)**
+
+If selling vehicles locally in US before considering Honduras shipment:
+
+**US Sale Recording:**
+```
+Record US Sale:
+├── Vehicle: [Select from US inventory]
+├── Sale Price: $[______]
+├── Sale Date: [Date Picker]
+├── Buyer Information:
+│   ├── Name: [____]
+│   ├── Phone: [____]
+│   └── Email: [____]
+├── Payment Method: [Cash / Check / Finance]
+├── Profit Calculation:
+│   ├── Sale Price: $XX,XXX
+│   ├── Less Purchase Price: $X,XXX
+│   ├── Less US Expenses: $XXX
+│   └── US Profit: $X,XXX ✓
+└── [Complete Sale]
+
+Documents:
+├── Bill of Sale [Auto-generate]
+├── Title Transfer Form
+└── Payment Receipt [Upload]
+```
+
+---
+
+## **Module 2: SHIPMENT CREATION & MANAGEMENT**
+
+### **Create Shipment Workflow**
+
+**Step 1: Initialize Shipment**
+```
+Create New Shipment to Honduras:
+
+Shipment Basics:
+├── Shipment Name: [Auto: SH-009 or Custom]
+├── Planned Departure Date: [Date Picker]
+├── Route: Colorado → Florida → Honduras
+└── Estimated Arrival Date: [Date Picker]
+
+[Next: Add Vehicles]
+```
+
+**Step 2: Add Vehicles from US Inventory**
+```
+Add Vehicles to Shipment SH-009:
+
+Available US Vehicles: (12)
+[Filter: Show only "Ship to Honduras" vehicles]
+
+┌──────────────────────────────────────┐
+│ ☐ 2015 Ford F-150                    │
+│   VIN: 234567 | Purchase: $5,200     │
+│   [Add to Shipment]                  │
+├──────────────────────────────────────┤
+│ ☐ 2013 Honda Accord                  │
+│   VIN: 789012 | Purchase: $3,800     │
+│   [Add to Shipment]                  │
+└──────────────────────────────────────┘
+
+Selected Vehicles: (5)
+├── 2012 Chevrolet Silverado - $4,250
+├── 2014 Jeep Cherokee - $4,000
+├── 2011 Jeep Grand Cherokee - $4,000
+├── 2012 Dodge Ram 1500 - $7,500
+└── 2009 Jeep Patriot - $2,000
+Total Purchase Cost: $21,750
+
+[Next: Cost Documentation]
+```
+
+**Step 3: Document Costs**
+```
+Shipment Cost Documentation:
+
+Purchase Costs:
+├── Total Vehicle Purchases: $21,750.00 (auto-calculated)
+
+Ground Transport (Colorado → Florida):
+├── Carrier: [Nexus Auto / Other]
+├── Cost per Vehicle: $[______] or
+├── Total Cost: $[______]
+├── Receipt: [Upload PDF]
+└── Notes: [____]
+
+Customs Broker Fees:
+├── Broker: [____]
+├── Total Fee: $[______]
+├── Receipt: [Upload PDF]
+
+Ocean Freight (Florida → Honduras):
+├── Shipping Company: [____]
+├── Container Type: [20ft / 40ft]
+├── Total Freight Cost: $[______]
+├── Receipt: [Upload PDF]
+├── Expected Departure: [Date]
+└── Expected Arrival: [Date]
+
+Honduras Import Fees:
+├── Customs Fee: $[______]
+├── Import Tax: $[______]
+├── Other Fees: $[______]
+├── Total: $[______] (auto-calculated)
+└── Receipts: [Upload PDFs]
+
+TOTAL SHIPMENT COST: $XX,XXX (auto-calculated)
+Cost per Vehicle: $X,XXX (auto-calculated)
+
+[Next: Review & Finalize]
+```
+
+**Step 4: Review & Finalize**
+```
+Shipment SH-009 Summary:
+
+Vehicles: 5 vehicles
+├── Total Purchase Cost: $21,750
+├── Total Logistics Cost: $18,707.65
+└── TOTAL INVESTMENT: $40,457.65
+
+Cost Allocation per Vehicle:
+├── 2012 Silverado: $8,921.33
+├── 2014 Cherokee: $7,558.33
+├── 2011 Grand Cherokee: $7,961.33
+├── 2012 Ram 1500: $10,871.33
+└── 2009 Patriot: $5,145.33
+
+Status Timeline:
+[○ Created] → [○ In Transit to FL] → [○ At Port] → [○ On Boat] → [○ In Honduras] → [○ Customs Cleared]
+
+Actions:
+├── [Save as Draft]
+├── [Finalize Shipment] (locks vehicle selection)
+├── [Generate Customs Documents]
+├── [Share with Tony] (sends notification)
+└── [Print Shipment Summary]
+
+□ Notify Tony of shipment creation
+□ Generate Phase 1 Partnership Agreement for this shipment
+
+[Finalize Shipment]
+```
+
+### **Shipment Tracking**
+
+**Shipment List (Admin View):**
+```
+Active Shipments (3):
+├── SH-009 - In Transit to Florida (5 vehicles, $40,457)
+├── SH-008 - On Boat to Honduras (3 vehicles, $28,500)
+└── SH-007 - Arrived in Honduras (4 vehicles, $35,200)
+
+Completed Shipments (12):
+└── [View Archive]
+
+[Create New Shipment]
+```
+
+**Shipment Detail Page:**
+```
+Shipment SH-008 - Status: ON BOAT TO HONDURAS
+
+Progress Timeline:
+[✓ Created Nov 15] → [✓ In Transit Nov 18] → [✓ At Port Nov 22] → [🚢 On Boat Nov 25] → [○ Arrival Dec 5] → [○ Cleared Dec 7]
+
+Vehicles in This Shipment: (3)
+├── 2016 Toyota Tacoma
+│   ├── Purchase: $8,200 | Total Cost: $11,450
+│   ├── Target Sale: $18,500
+│   └── Status: In Transit
+├── 2014 Ford Explorer
+└── 2015 Nissan Frontier
+
+Financial Summary:
+├── Total Investment: $28,500
+├── Total Target Revenue: $52,000
+└── Projected Gross Profit: $23,500
+
+Documents:
+├── Bill of Lading [PDF]
+├── Customs Declaration [PDF]
+├── Transport Receipts [3 PDFs]
+├── Broker Invoice [PDF]
+└── [Upload Document]
+
+Tracking Information:
+├── Vessel Name: Caribbean Express
+├── Tracking #: CBE-2024-1234
+├── Departure Port: Miami, FL
+├── Arrival Port: Roatán, Honduras
+├── ETA: December 5, 2025
+└── [Track Shipment] (external link)
+
+Actions:
+├── [Update Status]
+├── [Edit Shipment Details]
+├── [Notify Tony of Arrival]
+├── [Generate Arrival Inspection Form]
+└── [Mark as Delivered]
+
+Activity Log:
+├── Nov 25, 2:15 PM - Status updated to "On Boat" by Dominick
+├── Nov 22, 10:30 AM - Documents uploaded by Admin
+├── Nov 18, 9:00 AM - Vehicles departed Colorado
+└── Nov 15, 11:45 AM - Shipment created
+```
+
+---
+
+## **Module 3: HONDURAS INTEGRATION**
+
+### **A. Receiving Shipments**
+
+**Honduras - Incoming Shipments View (Tony's View):**
+```
+Incoming Shipments:
+
+Expected Arrivals:
+├── SH-008 - ETA Dec 5, 2025
+│   ├── 3 vehicles
+│   ├── Estimated Value: [HIDDEN for Tony]
+│   ├── Target Prices: $18,500 / $15,200 / $18,300
+│   └── [Prepare for Arrival]
+
+Arrived - Pending Inspection:
+├── SH-007 - Arrived Dec 1, 2025
+│   ├── 4 vehicles
+│   ├── [Start Inspection Process]
+│   └── [Generate Phase 2 Document]
+
+[View All Shipments]
+```
+
+**Arrival & Inspection Process:**
+```
+Shipment SH-007 Arrival Inspection:
+
+Inspection Date: [Today's Date]
+Location: Roatán, Honduras
+Inspector: Tony Hamilton Webster
+
+Vehicle 1: 2012 Chevrolet Silverado
+├── Expected Condition: Good
+├── Actual Condition: 
+│   ├── Exterior: ○ Excellent ● Good ○ Fair ○ Damaged
+│   ├── Interior: ● Excellent ○ Good ○ Fair ○ Damaged
+│   ├── Mechanical: ● Runs Well ○ Minor Issues ○ Major Issues
+├── Damage/Issues: [Text area for notes]
+├── Photos: [Upload multiple photos]
+└── Condition Assessment: ○ Better ● As Expected ○ Worse
+
+[Repeat for each vehicle in shipment]
+
+Insurance Confirmation:
+├── Insurance Provider: [____]
+├── Policy Number: [____]
+├── Coverage Amount: $[____] per vehicle
+├── Loss Payees: Dominick Scipione & Tony Hamilton Webster
+└── Certificate: [Upload PDF]
+
+□ I confirm all vehicles have been received and inspected
+□ Insurance coverage is in effect as of [Date]
+□ I accept custody of these vehicles per partnership agreement
+
+[Complete Inspection & Accept Vehicles]
+
+System Actions:
+├── Generates Phase 2 Arrival Inspection Receipt
+├── Moves vehicles to Honduras Active Inventory
+├── Sends notification to Dominick
+└── Creates audit trail entry
+```
+
+### **B. Honduras Inventory Management**
+
+**Honduras Inventory List (Tony's View):**
+```
+Current Honduras Inventory: (8 vehicles)
+
+Filters:
+├── Shipment: [All / SH-007 / SH-006 / SH-005]
+├── Days in Stock: [All / <30 / 30-60 / 60-90 / >90]
+└── Price Range: [All / <$15K / $15K-$25K / >$25K]
+
+┌────────────────────────────────────────────────┐
+│ 2012 Chevrolet Silverado (VIN: 218530)        │
+│ ├── Arrived: Dec 1, 2025 (10 days in stock)   │
+│ ├── Target Price: $14,807.69                  │
+│ ├── Minimum Price (90%): $13,326.92           │
+│ ├── My Listing Price: $15,200                 │
+│ ├── Status: Active - Listed for Sale          │
+│ └── [Record Sale] [Edit] [View Details]       │
+├────────────────────────────────────────────────┤
+│ 2014 Jeep Cherokee (VIN: 220936)              │
+│ ├── Arrived: Dec 1, 2025 (10 days in stock)   │
+│ ├── Target: $18,461.54 | Min: $16,615.39      │
+│ └── [Record Sale] [View]                      │
+└────────────────────────────────────────────────┘
+
+Inventory Summary:
+├── Total Vehicles: 8
+├── Average Days in Stock: 23 days
+├── Vehicles >60 Days: 2 (needs attention)
+└── Total Target Value: $XX,XXX
+
+[View Aged Inventory Report]
+```
+
+**Honduras Vehicle Detail (Tony's View):**
+```
+2012 Chevrolet Silverado K1500 LT
+
+[Photo Gallery]
+
+Basic Information:
+├── VIN: 1GCRKSE76CZ218530
+├── Arrived: December 1, 2025
+├── Days in Stock: 10 days
+├── Shipment: SH-007
+
+Pricing Guidelines:
+├── Target Sale Price: $14,807.69 ✓
+├── Minimum Allowed (90%): $13,326.92 ⚠️
+├── My Current Asking Price: $15,200
+└── Market Notes: High demand for trucks right now
+
+⚠️ Important: Sales below $13,326.92 require approval and incur penalty
+
+Condition Notes:
+├── Exterior: Good condition, minor scratches
+├── Interior: Excellent, clean
+├── Mechanical: Runs well, no issues
+└── Inspection Photos: [View 12 photos]
+
+Sales Activity:
+├── Listed: Dec 1, 2025
+├── Views: 15
+├── Test Drives: 2
+├── Offers Received: 1 ($14,000)
+└── [Add Note]
+
+Actions:
+├── [Record Sale]
+├── [Request Price Approval] (if selling below 90%)
+├── [Update Listing Price]
+├── [Add Photos]
+└── [Contact Dominick about This Vehicle]
+```
+
+### **C. Recording Honduras Sales**
+
+**Sale Entry Form (Tony's Interface):**
+```
+Record New Sale - Honduras
+
+Select Vehicle:
+[Dropdown: 2012 Chevrolet Silverado K1500 LT - Target $14,807.69]
+
+Sale Information:
+├── Sale Date: [Date Picker - defaults to today]
+├── Sale Price: $[______]
+│   └── ⚠️ Target: $14,807.69 | Minimum: $13,326.92
+│
+└── If Below Minimum:
+    ├── Reason: [Text area - required]
+    ├── □ I acknowledge I will personally pay the difference
+    └── [Request Approval from Dominick] (holds sale as pending)
+
+Buyer Information:
+├── Buyer Name: [____]
+├── ID Number: [____]
+├── Phone: [____]
+├── Email: [____]
+└── Address: [____]
+
+Payment Details:
+├── Payment Method: ○ Cash ○ Bank Transfer ○ Check ○ Financing
+├── Payment Received: ○ Yes ○ Pending
+└── Receipt/Reference: [Upload]
+
+Profit Calculation Preview:
+┌────────────────────────────────────┐
+│ Sale Price: $15,000.00             │
+│ Less Total Cost: $8,921.33         │
+│ = Gross Profit: $6,078.67          │
+│                                    │
+│ Current Phase: REINVESTMENT (60/40)│
+│                                    │
+│ Reinvestment (60%): $3,647.20      │
+│ Distributable (40%): $2,431.47     │
+│                                    │
+│ Dominick Receives: $1,215.74       │
+│ Tony Receives: $1,215.74           │
+│                                    │
+│ Payment Due: [5 business days]     │
+│ Due Date: [Auto-calculated]        │
+└────────────────────────────────────┘
+
+Documents:
+├── [Generate Phase 3 Sale Closure]
+├── Upload Bill of Sale: [Upload]
+├── Upload Buyer Payment: [Upload]
+└── Upload Title Transfer: [Upload]
+
+□ I confirm all information is accurate
+□ I have received full payment from buyer
+□ I will wire Dominick's share by [Due Date]
+
+[Record Sale]
+
+System Actions:
+├── Updates vehicle status to "Sold"
+├── Generates Phase 3 Sale Closure document
+├── Creates payment obligation record
+├── Sends notification to Dominick
+├── Updates partnership financial reports
+└── Calculates progress toward $150K goal
+```
+
+**Sale Recorded - Next Steps:**
+```
+✅ Sale Successfully Recorded!
+
+Sale Summary:
+├── Vehicle: 2012 Chevrolet Silverado
+├── Sale Price: $15,000.00
+├── Your Payment: $1,215.74
+├── Due Date: December 18, 2025
+
+Next Steps:
+1. [View Phase 3 Sale Closure Document]
+2. [Download Payment Instructions]
+3. Wire Transfer Details:
+   ├── Bank: Chase Bank
+   ├── Account: 731270529
+   ├── Routing: 103000648
+   ├── SWIFT: CHASUS33
+   ├── Amount: $1,215.74
+   ├── Reference: "Silverado-VIN218530"
+   └── [Copy Wire Details]
+
+4. After sending wire transfer:
+   └── [Upload Wire Confirmation Receipt]
+
+[View My Payment Dashboard]
+```
+
+---
+
+## **Module 4: CROSS-LOCATION FEATURES**
+
+### **A. Unified Search**
+
+**Global Search Bar (Top of Interface):**
+```
+[🔍 Search vehicles, shipments, documents, buyers...]
+
+Smart Search Results:
+├── Vehicles (3 results)
+│   ├── 2012 Silverado - In Honduras Stock
+│   ├── 2015 Silverado - In US Inventory
+│   └── 2018 Silverado - Sold (Honduras)
+│
+├── Shipments (2 results)
+│   ├── SH-008 - In Transit
+│   └── SH-007 - Delivered
+│
+├── Documents (5 results)
+│   ├── Phase 3 Closure - Silverado Sale
+│   ├── Transport Receipt - Nov 22
+│   └── ...
+│
+└── People (1 result)
+    └── Tony Hamilton Webster - Partner
+
+[View All Results]
+```
+
+### **B. Integrated Reporting**
+
+**Cross-Location Reports:**
+
+1. **Complete Business Overview**
+```
+Total Business Report - All Operations
+
+US Dealership Performance:
+├── Vehicles Purchased: 45
+├── Vehicles Sold (US): 12
+├── Vehicles Shipped to Honduras: 28
+├── Current US Inventory: 5
+├── US Revenue: $XX,XXX
+└── US Profit: $XX,XXX
+
+Honduras Partnership Performance:
+├── Shipments Received: 6
+├── Vehicles Received: 28
+├── Vehicles Sold: 15
+├── Vehicles in Stock: 13
+├── Honduras Revenue: $XXX,XXX
+├── Gross Profit: $XX,XXX
+├── Dominick's Total Earnings: $XX,XXX
+├── Tony's Total Earnings: $XX,XXX
+└── Reinvestment Fund: $XX,XXX
+
+Progress to $150K Inventory Goal:
+├── Current Honduras Inventory Value: $65,000
+├── Remaining: $85,000
+└── [Progress Bar: 43%]
+
+Combined Profitability:
+├── Total Revenue (US + Honduras): $XXX,XXX
+├── Total Cost: $XXX,XXX
+├── Combined Net Profit: $XX,XXX
+└── Overall ROI: XX%
+```
+
+2. **Vehicle Journey Report**
+```
+Track individual vehicle from purchase to final sale:
+
+Vehicle: 2012 Chevrolet Silverado K1500 LT
+
+Complete Journey:
+├── Nov 15: Purchased in Colorado auction - $4,250
+├── Nov 18: Transported to Florida - $226.67
+├── Nov 22: At Florida port - waiting
+├── Nov 25: Loaded on boat - $1,300 freight
+├── Dec 1: Arrived Honduras - $3,145 import fees
+├── Dec 1: Inspected by Tony - condition: good
+├── Dec 1-15: Listed for sale (14 days)
+├── Dec 15: SOLD for $15,000
+
+Financial Summary:
+├── Total Investment: $8,921.33
+├── Sale Price: $15,000.00
+├── Gross Profit: $6,078.67
+├── Time from Purchase to Sale: 30 days
+└── ROI: 68%
+```
+
+### **C. Notifications & Alerts**
+
+**Real-Time Notification System:**
+
+**For Dominick:**
+- 🚛 "Shipment SH-008 has departed Florida"
+- ✅ "Tony marked shipment SH-007 as received"
+- 💰 "Sale recorded: Silverado sold for $15,000"
+- ⏰ "Payment due today: $1,215.74 from Tony"
+- 📄 "Tony uploaded wire confirmation"
+- ⚠️ "Vehicle in Honduras stock >60 days needs attention"
+- 🎯 "$5,000 away from reaching $150K inventory goal!"
+
+**For Tony:**
+- 📦 "New shipment SH-009 created - 5 vehicles incoming"
+- 🚢 "Shipment SH-008 arriving in 3 days"
+- 📋 "Please complete arrival inspection for SH-007"
+- ⏰ "Payment due tomorrow: $1,215.74 for Silverado sale"
+- ✅ "Dominick confirmed payment received"
+- 📄 "New Phase 1 agreement ready for review"
+
+**Notification Center:**
+```
+🔔 Notifications (5 unread)
+
+Today:
+├── 💰 Sale recorded - Cherokee $18,500 (2 hours ago)
+├── 📄 Phase 3 document generated (2 hours ago)
+└── ⏰ Payment due Dec 22: $2,188 (3 hours ago)
+
+Yesterday:
+├── ✅ Wire confirmation uploaded by Tony (1 day ago)
+└── 🚛 Shipment departed Florida (1 day ago)
+
+[Mark All Read] [View All]
+```
+
+---
+
+## **Module 5: FINANCIAL DASHBOARD**
+
+### **Consolidated Financial View (Admin Only)**
+
+**Complete Financial Overview:**
+```
+Total Business Financials
+
+ASSETS:
+├── US Inventory Value: $XX,XXX (5 vehicles)
+├── Honduras Inventory Value: $XX,XXX (13 vehicles)
+├── Vehicles in Transit: $XX,XXX (8 vehicles)
+└── TOTAL ASSETS: $XXX,XXX
+
+REVENUE:
+├── US Sales Revenue: $XX,XXX
+├── Honduras Sales Revenue: $XXX,XXX
+└── TOTAL REVENUE: $XXX,XXX
+
+COSTS:
+├── Vehicle Purchases: $XXX,XXX
+├── Shipping & Logistics: $XX,XXX
+├── Import Fees & Taxes: $XX,XXX
+├── Operating Expenses: $X,XXX
+└── TOTAL COSTS: $XXX,XXX
+
+PROFITABILITY:
+├── US Dealership Profit: $XX,XXX
+├── Honduras Partnership Profit: $XX,XXX
+│   ├── Dominick's Share: $XX,XXX
+│   ├── Tony's Share: $XX,XXX
+│   └── Reinvestment Fund: $XX,XXX
+└── TOTAL NET PROFIT: $XX,XXX
+
+Charts:
+├── [Monthly Profit Trend Line Chart]
+├── [Revenue by Location Pie Chart]
+├── [Cost Breakdown Bar Chart]
+└── [Inventory Value Over Time]
+```
+
+### **Payment Tracking (Enhanced)**
+
+**Payment Dashboard:**
+```
+Payment Management
+
+Outstanding Payments from Tony:
+├── PAY-045 - Silverado Sale - $1,215.74 - Due Dec 18 (5 days)
+├── PAY-046 - Cherokee Sale - $2,188.47 - Due Dec 22 (9 days)
+└── Total Outstanding: $3,404.21
+
+Recent Payments Received:
+├── PAY-044 - $1,856.23 - Received Dec 10 ✓
+├── PAY-043 - $3,192.31 - Received Dec 5 ✓
+└── PAY-042 - $1,215.74 - Received Nov 28 ✓
+
+Payment History:
+├── Total Paid by Tony: $XX,XXX
+├── Average Payment Time: 3.2 days (target: 5 days)
+├── On-Time Payment Rate: 95%
+└── Overdue Incidents: 2
+
+[View Complete Payment History]
+[Export for Tax Purposes]
+```
+
+---
+
+## **Module 6: DOCUMENT MANAGEMENT**
+
+### **Centralized Document Library**
+
+**Document Organization:**
+```
+Documents Library
+
+📁 Partnership Agreements
+├── Phase 1 - Pre-Shipment Agreements (6 documents)
+├── Phase 2 - Arrival Inspections (6 documents)
+├── Phase 3 - Sale Closures (15 documents)
+└── Master Partnership Agreement
+
+📁 Shipment Documents
+├── SH-009 (5 documents)
+├── SH-008 (8 documents)
+├── SH-007 (12 documents - all phases)
+└── [Older Shipments]
+
+📁 Financial Documents
+├── Cost Receipts
+│   ├── Transport Receipts (25 documents)
+│   ├── Broker Invoices (15 documents)
+│   ├── Freight Bills (12 documents)
+│   └── Import Receipts (18 documents)
+├── Payment Confirmations (45 documents)
+└── Wire Transfer Receipts (42 documents)
+
+📁 Vehicle Documents
+├── Titles & Registrations
+├── Purchase Receipts
+├── Inspection Reports
+└── Sale Documents
+
+📁 Insurance Documents
+├── US Vehicle Insurance
+├── Honduras Vehicle Insurance
+├── Shipment Insurance
+└── Liability Insurance
+
+📁 Tax Documents
+├── 2024 Tax Year
+├── 2025 Tax Year (current)
+└── IRS Forms & Filings
+
+Search Documents:
+[🔍 Search by vehicle, date, type, shipment...]
+
+Upload New Document:
+[Drag & Drop or Click to Upload]
+└── Auto-categorize using AI
+```
+
+---
+
+## **Module 7: SETTINGS & ADMINISTRATION**
+
+### **Admin Panel**
+
+**User Management:**
+```
+System Users (7)
+
+Active Users:
+├── Dominick Scipione (Admin) - Last login: 5 min ago
+├── Tony Hamilton Webster (Honduras Partner) - Last login: 2 hours ago
+├── Sarah Johnson (US Manager) - Last login: 1 day ago
+├── Mike Rodriguez (Accountant) - Last login: 3 days ago
+└── Carlos Mendez (Honduras Staff) - Last login: 1 week ago
+
+Pending Approval:
+├── John Smith - Requested role: US Staff - [Approve / Reject]
+└── Maria Garcia - Requested role: Honduras Staff - [Approve / Reject]
+
+Deactivated Users:
+└── Former Employee - Deactivated 3 months ago
+
+[Invite New User]
+[View Activity Logs]
+[Manage Permissions]
+```
+
+**System Settings:**
+```
+Business Configuration:
+
+Locations:
+├── ✓ US Dealership (Colorado/Nebraska)
+├── ✓ Honduras Partnership (Roatán)
+└── [Add New Location]
+
+Financial Settings:
+├── Profit Distribution Phase: ○ Reinvestment (60/40) ● Post-$150K (50/50)
+├── $150K Inventory Goal: Current progress: $65,000 (43%)
+├── Payment Terms: 5 business days
+└── Minimum Price Floor: 90% of target
+
+Notification Settings:
+├── ✓ Email notifications
+├── ✓ SMS alerts for payments
+├── ✓ Push notifications
+└── Notification frequency: Real-time
+
+Integration Settings:
+├── Accounting Software: [QuickBooks Connected ✓]
+├── Payment Gateway: [Configure]
+└── Shipping Carriers: [Nexus Auto API ✓]
+
+Data & Privacy:
+├── Data Retention: 7 years
+├── Backup Frequency: Daily
+├── Last Backup: 2 hours ago
+└── [Download All Data]
+
+System Information:
+├── Version: 2.1.5
+├── Last Updated: Dec 1, 2025
+├── Uptime: 99.8%
+└── [View Release Notes]
+```
+
+**Audit Trail:**
+```
+System Activity Log
+
+Filters:
+├── User: [All / Select User]
+├── Action Type: [All / Create / Edit / Delete / View]
+├── Module: [All / Inventory / Shipments / Financial / etc.]
+└── Date Range: [Last 7 days ▼]
+
+Recent Activity:
+├── Dec 15, 3:45 PM - Tony recorded sale (Silverado, $15,000)
+├── Dec 15, 3:40 PM - Tony viewed vehicle (Silverado)
+├── Dec 15, 2:15 PM - Dominick updated shipment status (SH-008)
+├── Dec 15, 10:30 AM - Sarah added vehicle to US inventory
+├── Dec 14, 4:20 PM - Mike exported financial report
+└── Dec 14, 2:00 PM - Tony uploaded document (Insurance Cert)
+
+[Export Audit Log]
+[View Detailed Reports]
+```
+
+---
+
+## **Mobile App Considerations**
+
+**Mobile-Responsive Design:**
+
+All features accessible on mobile with optimized interfaces:
+
+**Mobile Dashboard:**
+- Quick stats at top
+- Swipeable cards for key metrics
+- Bottom navigation for main modules
+- Quick action buttons (floating action button)
+
+**Mobile-Specific Features:**
+- Photo upload directly from camera
+- QR code scanning for VIN entry
+- GPS location tagging for vehicle photos
+- Push notifications
+- Offline mode (view data, sync when online)
+- Touch-friendly buttons and forms
+
+**Mobile Quick Actions:**
+- "Add Vehicle" (camera + form)
+- "Record Sale" (simplified form)
+- "Update Shipment Status"
+- "Upload Receipt" (camera + categorize)
+
+---
+
+## **Tech Stack Recommendations**
+
+**Frontend:**
+- React.js or Next.js (web app)
+- React Native (mobile apps iOS/Android)
+- Tailwind CSS (styling)
+- Recharts or Chart.js (data visualization)
+
+**Backend:**
+- Node.js + Express or Python + Django
+- PostgreSQL (relational database)
+- AWS S3 or Google Cloud Storage (document storage)
+- Redis (caching)
+
+**Authentication:**
+- Auth0 or Firebase Authentication
+- JWT tokens
+- Bcrypt password hashing
+
+**Hosting:**
+- AWS (EC2, RDS, S3) or
+- Google Cloud Platform or
+- Heroku (simpler, fully managed)
+
+**Integrations:**
+- SendGrid (email notifications)
+- Twilio (SMS alerts)
+- Stripe or PayPal (if adding payment processing)
+- QuickBooks API (accounting integration)
+
+---
+
+## **Implementation Phases**
+
+**Phase 1: Core System (Months 1-2)**
+- User authentication & roles
+- US inventory management
+- Basic shipment creation
+- Honduras inventory view
+- Simple financial tracking
+
+**Phase 2: Enhanced Features (Months 3-4)**
+- Complete shipment workflow
+- Document management system
+- Payment tracking
+- Sale recording & profit calculation
+- Mobile responsive design
+
+**Phase 3: Advanced Features (Months 5-6)**
+- Cross-location reporting
+- Advanced analytics & charts
+- Notification system
+- Mobile apps (iOS/Android)
+- API integrations (accounting, shipping)
+
+**Phase 4: Optimization (Ongoing)**
+- AI-powered features (document OCR, price predictions)
+- Performance optimization
+- User feedback implementation
+- Additional integrations
+
+---
+
+**This comprehensive system gives you complete control over both US and Honduras operations while maintaining appropriate privacy and role-based access for all users!**
