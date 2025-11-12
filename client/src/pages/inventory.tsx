@@ -14,8 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Car, Truck, Package, CheckCircle2, Plus } from "lucide-react";
+import { Car, Truck, Package, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { CreateVehicleDialog } from "@/components/CreateVehicleDialog";
+import { BulkImportDialog } from "@/components/BulkImportDialog";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Vehicle } from "@shared/schema";
 
 const statusConfig = {
@@ -29,6 +33,32 @@ export default function Inventory() {
   const queryKey = filter === "all" ? "/api/vehicles" : `/api/vehicles?filter=${filter}`;
   const { data: vehicles, isLoading } = useQuery<Vehicle[]>({
     queryKey: [queryKey],
+  });
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/vehicles/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === "string" && key.startsWith("/api/vehicles");
+        }
+      });
+      toast({
+        title: "Vehicle deleted",
+        description: "The vehicle has been removed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete vehicle",
+        description: error.message || "An error occurred",
+      });
+    },
   });
 
   const filteredVehicles = vehicles?.filter((v) => filter === "all" || v.status === filter);
@@ -73,7 +103,10 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold mb-2">The Vault</h1>
           <p className="text-muted-foreground">Assets under our control</p>
         </div>
-        <CreateVehicleDialog />
+        <div className="flex gap-2">
+          <BulkImportDialog />
+          <CreateVehicleDialog />
+        </div>
       </div>
 
       <Tabs value={filter} onValueChange={setFilter} className="mb-6">
@@ -176,16 +209,31 @@ export default function Inventory() {
                           {daysInInventory > 0 ? daysInInventory : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/inventory/${vehicle.id}`}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link href={`/inventory/${vehicle.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid={`button-view-${vehicle.id}`}
+                                className="hover-elevate active-elevate-2"
+                              >
+                                View
+                              </Button>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="sm"
-                              data-testid={`button-view-${vehicle.id}`}
-                              className="hover-elevate active-elevate-2"
+                              onClick={() => {
+                                if (confirm(`Delete ${vehicle.year} ${vehicle.make} ${vehicle.model}?`)) {
+                                  deleteMutation.mutate(vehicle.id);
+                                }
+                              }}
+                              data-testid={`button-delete-${vehicle.id}`}
+                              className="hover-elevate active-elevate-2 text-destructive"
                             >
-                              View
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

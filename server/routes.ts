@@ -208,6 +208,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/shipments/:id', isAuthenticated, async (req, res) => {
+    try {
+      // Check if any vehicles are assigned to this shipment
+      const vehicles = await storage.listVehicles();
+      const assignedVehicles = vehicles.filter(v => v.shipmentId === req.params.id);
+      
+      if (assignedVehicles.length > 0) {
+        return res.status(409).json({ 
+          message: `Cannot delete shipment. ${assignedVehicles.length} vehicle(s) are assigned to this shipment. Please reassign or delete the vehicles first.` 
+        });
+      }
+      
+      await storage.deleteShipment(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting shipment:", error);
+      res.status(500).json({ message: "Failed to delete shipment" });
+    }
+  });
+
   // Vehicle routes
   app.get('/api/vehicles', isAuthenticated, async (req, res) => {
     try {
@@ -285,6 +305,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting vehicle:", error);
       res.status(500).json({ message: "Failed to delete vehicle" });
+    }
+  });
+
+  app.post('/api/vehicles/bulk-import', isAuthenticated, async (req, res) => {
+    try {
+      const { vehicles } = req.body;
+      if (!Array.isArray(vehicles)) {
+        return res.status(400).json({ message: "Expected an array of vehicles" });
+      }
+
+      const createdVehicles = [];
+      const errors = [];
+
+      for (let i = 0; i < vehicles.length; i++) {
+        try {
+          const validated = insertVehicleSchema.parse(vehicles[i]);
+          const vehicle = await storage.createVehicle(validated);
+          createdVehicles.push(vehicle);
+        } catch (error: any) {
+          errors.push({ row: i + 1, error: error.message });
+        }
+      }
+
+      res.status(201).json({
+        success: createdVehicles.length,
+        failed: errors.length,
+        createdVehicles,
+        errors
+      });
+    } catch (error: any) {
+      console.error("Error in bulk vehicle import:", error);
+      res.status(500).json({ message: error.message || "Failed to import vehicles" });
     }
   });
 

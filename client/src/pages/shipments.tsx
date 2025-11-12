@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Truck, Package, CheckCircle2, Ship } from "lucide-react";
+import { Truck, Package, CheckCircle2, Ship, Trash2 } from "lucide-react";
 import { CreateShipmentDialog } from "@/components/CreateShipmentDialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Shipment } from "@shared/schema";
 
 const statusConfig = {
@@ -26,6 +28,32 @@ const statusConfig = {
 export default function Shipments() {
   const { data: shipments, isLoading } = useQuery<Shipment[]>({
     queryKey: ["/api/shipments"],
+  });
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/shipments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === "string" && key.startsWith("/api/shipments");
+        }
+      });
+      toast({
+        title: "Shipment deleted",
+        description: "The shipment has been removed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to delete shipment",
+        description: error.message || "An error occurred",
+      });
+    },
   });
 
   if (isLoading) {
@@ -124,16 +152,31 @@ export default function Shipments() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/shipments/${shipment.id}`}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Link href={`/shipments/${shipment.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid={`button-view-${shipment.id}`}
+                                className="hover-elevate active-elevate-2"
+                              >
+                                View Details
+                              </Button>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="sm"
-                              data-testid={`button-view-${shipment.id}`}
-                              className="hover-elevate active-elevate-2"
+                              onClick={() => {
+                                if (confirm(`Delete shipment ${shipment.shipmentNumber}?`)) {
+                                  deleteMutation.mutate(shipment.id);
+                                }
+                              }}
+                              data-testid={`button-delete-${shipment.id}`}
+                              className="hover-elevate active-elevate-2 text-destructive"
                             >
-                              View Details
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
