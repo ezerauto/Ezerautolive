@@ -36,8 +36,8 @@ function addBusinessDays(date: Date, days: number): Date {
 }
 
 // Helper function to calculate profit distribution
-function calculateProfitDistribution(grossProfit: number, currentInventoryValue: number) {
-  const reinvestmentPhase = currentInventoryValue < GOAL_AMOUNT;
+function calculateProfitDistribution(grossProfit: number, cumulativeReinvestment: number) {
+  const reinvestmentPhase = cumulativeReinvestment < GOAL_AMOUNT;
   if (reinvestmentPhase) {
     // Reinvestment phase: 60% reinvested for inventory, 40% split (20% each)
     const reinvestmentAmount = grossProfit * 0.6;
@@ -129,14 +129,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentInventoryValue = unsoldVehicles.reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0);
       
       const soldVehicles = allVehicles.filter(v => v.status === 'sold');
-      const totalGrossProfit = soldVehicles.reduce((sum, v) => {
-        const totalCost = vehicleTotalCosts.get(v.id) || 0;
-        const profit = Number(v.actualSalePrice || 0) - totalCost;
-        return sum + profit;
-      }, 0);
       
-      const progressTo150K = currentInventoryValue;
-      const reinvestmentPhase = currentInventoryValue < GOAL_AMOUNT;
+      // Calculate progress by accumulating only positive profit contributions
+      // Progress = cumulative sum of (60% of each profitable sale)
+      let cumulativeReinvestment = 0;
+      let totalGrossProfit = 0;
+      
+      for (const vehicle of soldVehicles) {
+        const totalCost = vehicleTotalCosts.get(vehicle.id) || 0;
+        const profit = Number(vehicle.actualSalePrice || 0) - totalCost;
+        totalGrossProfit += profit;
+        
+        // Only add to reinvestment progress if this sale was profitable
+        if (profit > 0) {
+          const reinvestmentFromThisSale = profit * 0.6; // 60% of profit
+          cumulativeReinvestment += reinvestmentFromThisSale;
+        }
+      }
+      
+      const progressTo150K = Math.min(cumulativeReinvestment, GOAL_AMOUNT); // Cap at $150K
+      const reinvestmentPhase = progressTo150K < GOAL_AMOUNT;
       
       const vehiclesInTransit = allVehicles.filter(v => v.status === 'in_transit');
       const vehiclesInStock = allVehicles.filter(v => v.status === 'in_stock');
@@ -220,8 +232,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               daysInInventory: v.dateArrived ? Math.ceil((now.getTime() - new Date(v.dateArrived).getTime()) / (1000 * 60 * 60 * 24)) : 0,
             })),
           },
-          approaching150K: currentInventoryValue >= GOAL_AMOUNT * 0.9 && currentInventoryValue < GOAL_AMOUNT,
-          reached150K: currentInventoryValue >= GOAL_AMOUNT,
+          approaching150K: progressTo150K >= GOAL_AMOUNT * 0.9 && progressTo150K < GOAL_AMOUNT,
+          reached150K: progressTo150K >= GOAL_AMOUNT,
         },
         inventoryGrowth,
         portfolioComposition,
@@ -471,16 +483,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If vehicle was sold, create payment record
       if (updates.status === 'sold' && updates.actualSalePrice) {
-        // Use the sale date from updates, or current date if not provided
+        // Calculate cumulative reinvestment from previous sales
+        const allVehicles = await storage.listVehicles();
+        const allCosts = await storage.listCosts();
+        const allShipments = await storage.listShipments();
+        
+        // Calculate vehicle total costs
+        const vehicleTotalCosts = new Map<string, number>();
+        for (const shipment of allShipments) {
+          const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
+          const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
+          const totalShipmentCost = 
+            Number(shipment.groundTransportCost || 0) +
+            Number(shipment.customsBrokerFees || 0) +
+            Number(shipment.oceanFreightCost || 0) +
+            Number(shipment.importFees || 0) +
+            shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+          
+          if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
+            const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
+            for (const v of shipmentVehicles) {
+              const vehicleShare = totalPurchaseValue > 0 
+                ? (Number(v.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
+                : totalShipmentCost / shipmentVehicles.length;
+              const current = vehicleTotalCosts.get(v.id) || 0;
+              vehicleTotalCosts.set(v.id, current + vehicleShare);
+            }
+          }
+        }
+        
+        for (const v of allVehicles) {
+          let totalCost = Number(v.purchasePrice || 0);
+          const vCosts = allCosts.filter(c => c.vehicleId === v.id);
+          totalCost += vCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+          const allocatedShipmentCost = vehicleTotalCosts.get(v.id) || 0;
+          totalCost += allocatedShipmentCost;
+          vehicleTotalCosts.set(v.id, totalCost);
+        }
+        
+        // Calculate cumulative reinvestment from previous sales
+        let cumulativeReinvestment = 0;
+        const previouslySoldVehicles = allVehicles.filter(v => v.status === 'sold' && v.id !== vehicle.id);
+        for (const v of previouslySoldVehicles) {
+          const totalCost = vehicleTotalCosts.get(v.id) || 0;
+          const profit = Number(v.actualSalePrice || 0) - totalCost;
+          if (profit > 0) {
+            cumulativeReinvestment += profit * 0.6;
+          }
+        }
+        
+        const grossProfit = Number(updates.actualSalePrice) - (vehicleTotalCosts.get(vehicle.id) || 0);
+        const { dominickShare } = calculateProfitDistribution(grossProfit, cumulativeReinvestment);
+        
+        // Calculate payment due date (5 business days after sale)
         const saleDate = updates.saleDate ? new Date(updates.saleDate) : new Date();
         const dueDate = addBusinessDays(saleDate, 5);
-        const grossProfit = Number(updates.actualSalePrice) - Number(vehicle.purchasePrice);
-        const allVehicles = await storage.listVehicles();
-        const currentInventoryValue = allVehicles
-          .filter(v => v.status !== 'sold')
-          .reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
-        
-        const { dominickShare } = calculateProfitDistribution(grossProfit, currentInventoryValue);
         
         await storage.createPayment({
           paymentNumber: `PAY-${Date.now()}`,
@@ -818,10 +875,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return dateA - dateB;
         });
       
-      // Calculate profit distribution at shipment level with running inventory
-      // Start from 0 to replay historical inventory accumulation
+      // Calculate profit distribution at shipment level with cumulative reinvestment
+      // Start from 0 to replay historical reinvestment accumulation
       const shipmentDistributions = new Map<string, { dominickShare: number; tonyShare: number; reinvestmentPhase: boolean; reinvestmentAmount: number }>();
-      let runningInventoryValue = 0;
+      let cumulativeReinvestment = 0;
       
       sortedShipments.forEach(([shipmentKey, group]) => {
         const vehicles = group.vehicles;
@@ -831,13 +888,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sum + (Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0)), 0
         );
         
-        // Calculate distribution using current running inventory
-        const distribution = calculateProfitDistribution(shipmentProfit, runningInventoryValue);
+        // Calculate distribution using cumulative reinvestment progress
+        const distribution = calculateProfitDistribution(shipmentProfit, cumulativeReinvestment);
         shipmentDistributions.set(shipmentKey, distribution);
         
-        // Update running inventory with reinvestment
-        if (distribution.reinvestmentPhase) {
-          runningInventoryValue += distribution.reinvestmentAmount;
+        // Update cumulative reinvestment (only add positive profits)
+        if (shipmentProfit > 0 && distribution.reinvestmentPhase) {
+          cumulativeReinvestment += distribution.reinvestmentAmount;
         }
         
         totalGrossProfit += shipmentProfit;
@@ -905,34 +962,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/analytics/projections', isAuthenticated, async (req, res) => {
     try {
       const allVehicles = await storage.listVehicles();
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
       const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold' && v.targetSalePrice && Number(v.targetSalePrice) > 0);
       const soldVehicles = allVehicles.filter(v => v.status === 'sold');
       
-      const currentInventoryValue = allVehicles.filter(v => v.status !== 'sold').reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
+      // Calculate total costs per vehicle (same logic as dashboard)
+      const vehicleTotalCosts = new Map<string, number>();
+      
+      // Allocate shipment-level costs to vehicles proportionally
+      for (const shipment of allShipments) {
+        const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
+        const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
+        
+        const totalShipmentCost = 
+          Number(shipment.groundTransportCost || 0) +
+          Number(shipment.customsBrokerFees || 0) +
+          Number(shipment.oceanFreightCost || 0) +
+          Number(shipment.importFees || 0) +
+          shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+        
+        if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
+          const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
+          
+          for (const vehicle of shipmentVehicles) {
+            const vehicleShare = totalPurchaseValue > 0 
+              ? (Number(vehicle.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
+              : totalShipmentCost / shipmentVehicles.length;
+            
+            const current = vehicleTotalCosts.get(vehicle.id) || 0;
+            vehicleTotalCosts.set(vehicle.id, current + vehicleShare);
+          }
+        }
+      }
+      
+      // Add purchase price and vehicle-specific costs
+      for (const vehicle of allVehicles) {
+        let totalCost = Number(vehicle.purchasePrice || 0);
+        const vehicleCosts = allCosts.filter(c => c.vehicleId === vehicle.id);
+        totalCost += vehicleCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+        const allocatedShipmentCost = vehicleTotalCosts.get(vehicle.id) || 0;
+        totalCost += allocatedShipmentCost;
+        vehicleTotalCosts.set(vehicle.id, totalCost);
+      }
+      
+      // Calculate cumulative reinvestment from sold vehicles
+      let cumulativeReinvestment = 0;
+      for (const v of soldVehicles) {
+        const totalCost = vehicleTotalCosts.get(v.id) || 0;
+        const profit = Number(v.actualSalePrice || 0) - totalCost;
+        if (profit > 0) {
+          cumulativeReinvestment += profit * 0.6;
+        }
+      }
+      
+      const currentInventoryValue = allVehicles.filter(v => v.status !== 'sold').reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0);
       const actualizedRevenue = soldVehicles.reduce((sum, v) => sum + Number(v.actualSalePrice || 0), 0);
       
       const projections = unsoldVehicles.map(v => {
         const targetSalePrice = Number(v.targetSalePrice || 0);
-        const purchasePrice = Number(v.purchasePrice || 0);
+        const totalVehicleCost = vehicleTotalCosts.get(v.id) || 0;
         const minimumPrice = v.minimumPrice && Number(v.minimumPrice) > 0 
           ? Number(v.minimumPrice) 
           : targetSalePrice;
         
-        const targetProfit = targetSalePrice - purchasePrice;
-        const minimumProfit = minimumPrice - purchasePrice;
+        const targetProfit = targetSalePrice - totalVehicleCost;
+        const minimumProfit = minimumPrice - totalVehicleCost;
         
         const { dominickShare: targetDominickShare, tonyShare: targetTonyShare } = 
-          calculateProfitDistribution(targetProfit, currentInventoryValue);
+          calculateProfitDistribution(targetProfit, cumulativeReinvestment);
         
         const { dominickShare: minDominickShare, tonyShare: minTonyShare} = 
-          calculateProfitDistribution(minimumProfit, currentInventoryValue);
+          calculateProfitDistribution(minimumProfit, cumulativeReinvestment);
         
         return {
           vehicleId: v.id,
           vehicleName: `${v.year} ${v.make} ${v.model}`,
           vin: v.vin,
           status: v.status,
-          purchasePrice,
+          totalCost: totalVehicleCost,
           targetSalePrice,
           minimumPrice,
           projectedRevenue: {
@@ -959,7 +1067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allUnsoldVehicles = allVehicles.filter(v => v.status !== 'sold');
       
       const totals = {
-        totalInvestment: unsoldVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0),
+        totalInvestment: unsoldVehicles.reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0),
         projectedRevenue: {
           target: projections.reduce((sum, p) => sum + p.projectedRevenue.target, 0),
           minimum: projections.reduce((sum, p) => sum + p.projectedRevenue.minimum, 0),

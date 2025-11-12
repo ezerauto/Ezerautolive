@@ -66,7 +66,14 @@ Preferred communication style: Simple, everyday language.
 - Protected routes requiring authentication via middleware
 
 **Business Logic:**
-- Profit distribution calculation based on inventory value threshold ($150K)
+- **Cost Accounting System**: Total vehicle cost = purchase price + vehicle-specific costs + proportionally allocated shipment costs
+  - Shipment costs (ground transport, customs, ocean freight, import fees) are allocated across vehicles based on purchase price weight
+  - Both shipment built-in cost fields and costs table entries are combined
+  - Ensures accurate profit calculations that include all expenses
+- **Profit Distribution**: Calculated based on progress toward $150K reinvestment goal
+  - Progress starts at $0 and grows only from reinvested profits (60% of gross profit)
+  - During reinvestment phase (< $150K progress): 60% reinvested, 20% each to Dominick and Tony
+  - After $150K progress: 50/50 profit split
 - Business day calculations for payment due dates
 - Status tracking for vehicles (in_transit, in_stock, sold)
 - Shipment status workflow (in_transit, arrived, customs_cleared, completed)
