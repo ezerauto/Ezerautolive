@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 import {
   index,
+  uniqueIndex,
   jsonb,
   pgTable,
   timestamp,
@@ -60,6 +61,7 @@ export const shipments = pgTable("shipments", {
 export const shipmentsRelations = relations(shipments, ({ many }) => ({
   vehicles: many(vehicles),
   costs: many(costs),
+  contracts: many(contracts),
 }));
 
 export const insertShipmentSchema = createInsertSchema(shipments).omit({
@@ -204,15 +206,24 @@ export const contracts = pgTable("contracts", {
   parties: text("parties").array(),
   contractDate: timestamp("contract_date").notNull(),
   documentUrl: text("document_url"),
+  relatedShipmentId: varchar("related_shipment_id").references(() => shipments.id, { onDelete: 'set null' }),
   relatedVehicleId: varchar("related_vehicle_id").references(() => vehicles.id, { onDelete: 'set null' }),
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   profit: decimal("profit", { precision: 10, scale: 2 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("uniq_shipment_contract_type")
+    .on(table.relatedShipmentId, table.type)
+    .where(sql`${table.relatedShipmentId} IS NOT NULL`),
+]);
 
 export const contractsRelations = relations(contracts, ({ one }) => ({
+  relatedShipment: one(shipments, {
+    fields: [contracts.relatedShipmentId],
+    references: [shipments.id],
+  }),
   relatedVehicle: one(vehicles, {
     fields: [contracts.relatedVehicleId],
     references: [vehicles.id],

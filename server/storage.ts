@@ -62,7 +62,10 @@ export interface IStorage {
   createContract(contract: InsertContract): Promise<Contract>;
   getContract(id: string): Promise<Contract | undefined>;
   listContracts(): Promise<Contract[]>;
+  listShipmentContracts(shipmentId: string): Promise<Contract[]>;
+  getShipmentContractByType(shipmentId: string, type: string): Promise<Contract | undefined>;
   updateContract(id: string, updates: Partial<InsertContract>): Promise<Contract>;
+  deleteContract(id: string): Promise<void>;
   
   // Cost operations
   createCost(cost: InsertCost): Promise<Cost>;
@@ -236,6 +239,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contracts.id, id))
       .returning();
     return contract;
+  }
+
+  async listShipmentContracts(shipmentId: string): Promise<Contract[]> {
+    return db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.relatedShipmentId, shipmentId))
+      .orderBy(desc(contracts.createdAt));
+  }
+
+  async getShipmentContractByType(shipmentId: string, type: string): Promise<Contract | undefined> {
+    const [contract] = await db
+      .select()
+      .from(contracts)
+      .where(and(
+        eq(contracts.relatedShipmentId, shipmentId),
+        eq(contracts.type, type)
+      ))
+      .limit(1);
+    return contract;
+  }
+
+  async deleteContract(id: string): Promise<void> {
+    await db.delete(contracts).where(eq(contracts.id, id));
   }
 
   // Cost operations
