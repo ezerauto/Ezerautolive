@@ -42,10 +42,8 @@ export function SimpleUploader({
         }
 
         // Get upload URL from server
-        const { uploadURL } = await apiRequest<{ uploadURL: string }>(
-          "/api/objects/upload",
-          { method: "POST" }
-        );
+        const response = await apiRequest("POST", "/api/objects/upload");
+        const { uploadURL } = await response.json() as { uploadURL: string };
 
         // Upload file to object storage
         await fetch(uploadURL, {
