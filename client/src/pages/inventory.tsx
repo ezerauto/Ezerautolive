@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Plus, Car, Truck, Package, CheckCircle2 } from "lucide-react";
+import { Car, Truck, Package, CheckCircle2 } from "lucide-react";
+import { CreateVehicleDialog } from "@/components/CreateVehicleDialog";
 import type { Vehicle } from "@shared/schema";
 
 const statusConfig = {
@@ -71,10 +71,7 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold mb-2">Vehicle Inventory</h1>
           <p className="text-muted-foreground">Manage all vehicles in the partnership</p>
         </div>
-        <Button data-testid="button-add-vehicle" className="hover-elevate active-elevate-2">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Vehicle
-        </Button>
+        <CreateVehicleDialog />
       </div>
 
       <Tabs value={filter} onValueChange={setFilter} className="mb-6">

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,7 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Plus, Truck, Package, CheckCircle2, Ship } from "lucide-react";
+import { Truck, Package, CheckCircle2, Ship } from "lucide-react";
+import { CreateShipmentDialog } from "@/components/CreateShipmentDialog";
 import type { Shipment } from "@shared/schema";
 
 const statusConfig = {
@@ -59,10 +59,7 @@ export default function Shipments() {
           <h1 className="text-3xl font-bold mb-2">Shipments</h1>
           <p className="text-muted-foreground">Track vehicle shipments from USA to Honduras</p>
         </div>
-        <Button data-testid="button-new-shipment" className="hover-elevate active-elevate-2">
-          <Plus className="h-4 w-4 mr-2" />
-          New Shipment
-        </Button>
+        <CreateShipmentDialog />
       </div>
 
       {!shipments || shipments.length === 0 ? (
@@ -71,10 +68,7 @@ export default function Shipments() {
             <Truck className="h-16 w-16 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No shipments yet</h3>
             <p className="text-sm text-muted-foreground mb-6">Create your first shipment to start tracking</p>
-            <Button data-testid="button-create-first-shipment" className="hover-elevate active-elevate-2">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Shipment
-            </Button>
+            <CreateShipmentDialog />
           </CardContent>
         </Card>
       ) : (
