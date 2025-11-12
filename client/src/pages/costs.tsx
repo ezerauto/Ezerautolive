@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Receipt, FileText, Info } from "lucide-react";
+import { Plus, Receipt, FileText, Info, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -169,6 +169,26 @@ export default function Costs() {
       toast({
         title: "Error",
         description: error.message || "Failed to record cost",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCostMutation = useMutation({
+    mutationFn: async (costId: string) => {
+      return apiRequest("DELETE", `/api/costs/${costId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/costs"] });
+      toast({
+        title: "Success",
+        description: "Cost deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete cost",
         variant: "destructive",
       });
     },
@@ -333,14 +353,38 @@ export default function Costs() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          data-testid={`button-edit-${cost.id}`}
-                          className="hover-elevate active-elevate-2"
-                        >
-                          Edit
-                        </Button>
+                        {cost.source === 'auto_shipment' ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                data-testid={`button-delete-${cost.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Auto-generated costs cannot be deleted. Edit the shipment instead.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this cost?')) {
+                                deleteCostMutation.mutate(cost.id);
+                              }
+                            }}
+                            disabled={deleteCostMutation.isPending}
+                            data-testid={`button-delete-${cost.id}`}
+                            className="hover-elevate active-elevate-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

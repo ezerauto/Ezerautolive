@@ -769,6 +769,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/costs/:id', isAuthenticated, async (req, res) => {
+    try {
+      const cost = await storage.getCost(req.params.id);
+      if (!cost) {
+        return res.status(404).json({ message: "Cost not found" });
+      }
+
+      // Prevent deletion of auto-generated costs
+      if (cost.source === 'auto_shipment') {
+        return res.status(400).json({ 
+          message: "Cannot delete auto-generated costs. Edit the shipment to adjust operation costs." 
+        });
+      }
+
+      await storage.deleteCost(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting cost:", error);
+      res.status(500).json({ message: error.message || "Failed to delete cost" });
+    }
+  });
+
   // Financial dashboard endpoint
   app.get('/api/financials', isAuthenticated, async (req, res) => {
     try {
