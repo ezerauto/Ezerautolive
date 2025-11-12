@@ -20,6 +20,7 @@ export function BulkImportDialog() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<any[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const { toast } = useToast();
 
   const importMutation = useMutation({
@@ -45,6 +46,13 @@ export function BulkImportDialog() {
       
       if (data.errors && data.errors.length > 0) {
         setErrors(data.errors.map((e: any) => `Row ${e.row}: ${e.error}`));
+      }
+      
+      if (data.warnings && data.warnings.length > 0) {
+        setWarnings(data.warnings.map((w: any) => `${w.vin}: ${w.message}`));
+      }
+      
+      if (data.errors && data.errors.length > 0) {
         toast({
           variant: data.success > 0 ? "default" : "destructive",
           title: data.success > 0 ? "Partial import completed" : "Import failed",
@@ -53,12 +61,15 @@ export function BulkImportDialog() {
       } else {
         toast({
           title: "Import completed",
-          description: `Successfully imported ${data.success} vehicle(s).`,
+          description: `Successfully imported ${data.success} vehicle(s)${data.warnings?.length ? `. ${data.warnings.length} vehicle(s) have missing optional fields.` : '.'}`,
         });
-        setOpen(false);
-        setFile(null);
-        setPreview([]);
-        setErrors([]);
+        if (data.warnings && data.warnings.length === 0) {
+          setOpen(false);
+          setFile(null);
+          setPreview([]);
+          setErrors([]);
+          setWarnings([]);
+        }
       }
     },
     onError: (error: any) => {
@@ -169,8 +180,21 @@ export function BulkImportDialog() {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
+                <div className="font-semibold mb-1">Errors (vehicles not imported):</div>
                 {errors.map((error, i) => (
-                  <div key={i}>{error}</div>
+                  <div key={i} className="text-sm">{error}</div>
+                ))}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {warnings.length > 0 && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="font-semibold mb-1">Imported with missing information (you can edit these later):</div>
+                {warnings.map((warning, i) => (
+                  <div key={i} className="text-sm">{warning}</div>
                 ))}
               </AlertDescription>
             </Alert>

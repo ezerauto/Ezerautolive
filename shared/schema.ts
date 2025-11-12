@@ -121,7 +121,24 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   saleDate: z.coerce.date().optional().nullable(),
 });
 
+export const bulkImportVehicleSchema = z.object({
+  vin: z.string().min(1, "VIN is required"),
+  make: z.string().min(1, "Make is required"),
+  model: z.string().min(1, "Model is required"),
+  year: z.number().int().min(1900).max(2100),
+  purchasePrice: z.string().or(z.number()).transform(val => String(val)),
+  purchaseDate: z.coerce.date().optional().default(() => new Date()),
+  targetSalePrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
+  status: z.string().optional().default('in_stock'),
+  shipmentId: z.string().nullable().optional(),
+  odometer: z.number().int().nullable().optional(),
+  color: z.string().optional().nullable(),
+  purchaseLocation: z.string().optional().nullable(),
+  minimumPrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
+});
+
 export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type BulkImportVehicle = z.infer<typeof bulkImportVehicleSchema>;
 export type Vehicle = typeof vehicles.$inferSelect;
 
 // Payments table

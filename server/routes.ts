@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertShipmentSchema, insertVehicleSchema, insertPaymentSchema, insertContractSchema, insertCostSchema } from "@shared/schema";
+import { insertShipmentSchema, insertVehicleSchema, bulkImportVehicleSchema, insertPaymentSchema, insertContractSchema, insertCostSchema } from "@shared/schema";
 
 const GOAL_AMOUNT = 150000;
 
@@ -317,14 +317,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const createdVehicles = [];
       const errors = [];
+      const warnings = [];
 
       for (let i = 0; i < vehicles.length; i++) {
         try {
-          const validated = insertVehicleSchema.parse(vehicles[i]);
+          const validated = bulkImportVehicleSchema.parse(vehicles[i]);
           const vehicle = await storage.createVehicle(validated);
           createdVehicles.push(vehicle);
+          
+          // Track what's missing for this vehicle
+          const missingFields = [];
+          if (!validated.odometer) missingFields.push('mileage');
+          if (!validated.color) missingFields.push('color');
+          if (!validated.targetSalePrice) missingFields.push('target sale price');
+          
+          if (missingFields.length > 0) {
+            warnings.push({
+              row: i + 1,
+              vin: validated.vin,
+              message: `Missing optional fields: ${missingFields.join(', ')}`
+            });
+          }
         } catch (error: any) {
-          errors.push({ row: i + 1, error: error.message });
+          const errorMessage = error.errors 
+            ? error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
+            : error.message;
+          errors.push({ row: i + 1, error: errorMessage });
         }
       }
 
@@ -332,7 +350,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: createdVehicles.length,
         failed: errors.length,
         createdVehicles,
-        errors
+        errors,
+        warnings
       });
     } catch (error: any) {
       console.error("Error in bulk vehicle import:", error);
