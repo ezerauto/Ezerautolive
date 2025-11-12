@@ -2,6 +2,7 @@ import { db } from "../db";
 import { costs } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import type { Shipment } from "@shared/schema";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 const SHIPMENT_COST_MAPPINGS: Array<{
   field: keyof Shipment;
@@ -14,12 +15,23 @@ const SHIPMENT_COST_MAPPINGS: Array<{
   { field: "importFees", category: "import_fees", vendor: "Import Fees" },
 ];
 
-export async function syncShipmentCostsToLedger(shipment: Shipment): Promise<void> {
+export async function syncShipmentCostsToLedger(
+  shipment: Shipment,
+  tx?: NodePgDatabase<any> | typeof db
+): Promise<void> {
+  // Validate shipment has required data
+  if (!shipment.shipmentDate) {
+    throw new Error('Shipment must have a shipment date to sync costs');
+  }
+
+  // Use provided transaction or fallback to db
+  const dbClient = tx || db;
+
   for (const mapping of SHIPMENT_COST_MAPPINGS) {
     const amount = Number(shipment[mapping.field] || 0);
     
     // Check if there's an existing auto-generated cost for this shipment+category
-    const existing = await db.query.costs.findFirst({
+    const existing = await dbClient.query.costs.findFirst({
       where: and(
         eq(costs.shipmentId, shipment.id),
         eq(costs.category, mapping.category),
@@ -31,7 +43,7 @@ export async function syncShipmentCostsToLedger(shipment: Shipment): Promise<voi
       // Upsert: create or update the auto-generated cost
       if (existing) {
         // Update amount and vendor, but preserve receiptUrl and notes
-        await db
+        await dbClient
           .update(costs)
           .set({
             amount: Number(amount).toFixed(2),
@@ -42,7 +54,7 @@ export async function syncShipmentCostsToLedger(shipment: Shipment): Promise<voi
           .where(eq(costs.id, existing.id));
       } else {
         // Create new auto-generated cost
-        await db.insert(costs).values({
+        await dbClient.insert(costs).values({
           category: mapping.category,
           amount: Number(amount).toFixed(2),
           costDate: shipment.shipmentDate,
@@ -56,7 +68,7 @@ export async function syncShipmentCostsToLedger(shipment: Shipment): Promise<voi
       }
     } else if (existing) {
       // Amount is 0 or null, delete the auto-generated cost if it exists
-      await db.delete(costs).where(eq(costs.id, existing.id));
+      await dbClient.delete(costs).where(eq(costs.id, existing.id));
     }
   }
 }

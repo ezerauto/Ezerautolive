@@ -171,8 +171,15 @@ export class DatabaseStorage implements IStorage {
 
   // Shipment operations
   async createShipment(shipmentData: InsertShipment): Promise<Shipment> {
-    const [shipment] = await db.insert(shipments).values(shipmentData).returning();
-    return shipment;
+    return await db.transaction(async (tx) => {
+      const [shipment] = await tx.insert(shipments).values(shipmentData).returning();
+      
+      // Sync shipment costs to ledger within transaction
+      const { syncShipmentCostsToLedger } = await import('./services/costSync');
+      await syncShipmentCostsToLedger(shipment, tx);
+      
+      return shipment;
+    });
   }
 
   async getShipment(id: string): Promise<Shipment | undefined> {
@@ -185,12 +192,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateShipment(id: string, updates: Partial<InsertShipment>): Promise<Shipment> {
-    const [shipment] = await db
-      .update(shipments)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(shipments.id, id))
-      .returning();
-    return shipment;
+    return await db.transaction(async (tx) => {
+      const [shipment] = await tx
+        .update(shipments)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(shipments.id, id))
+        .returning();
+      
+      // Sync shipment costs to ledger within transaction
+      const { syncShipmentCostsToLedger } = await import('./services/costSync');
+      await syncShipmentCostsToLedger(shipment, tx);
+      
+      return shipment;
+    });
   }
 
   async deleteShipment(id: string): Promise<void> {

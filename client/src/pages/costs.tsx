@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Receipt, FileText } from "lucide-react";
+import { Plus, Receipt, FileText, Info } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,6 +43,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SimpleUploader } from "@/components/SimpleUploader";
 import type { Cost } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "wouter";
 
 const categoryLabels: Record<string, string> = {
   vehicle_purchase: "Vehicle Purchase",
@@ -236,6 +239,12 @@ export default function Costs() {
         <Card>
           <CardHeader>
             <CardTitle>Receipt Library</CardTitle>
+            <div className="flex items-start gap-2 mt-3 p-3 bg-muted/50 rounded-md">
+              <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Some costs are automatically synced from shipment operations. You can add receipts and notes to these entries, but to adjust amounts, edit the shipment directly.
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg border border-border overflow-hidden">
@@ -261,13 +270,46 @@ export default function Costs() {
                       <TableCell className="text-muted-foreground">
                         {new Date(cost.costDate).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>{categoryLabels[cost.category] || cost.category}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{categoryLabels[cost.category] || cost.category}</span>
+                          {cost.source === 'auto_shipment' && (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Badge variant="secondary" className="text-xs">
+                                  Auto
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">Auto-synced from shipment operations</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{cost.vendor || '-'}</TableCell>
                       <TableCell className="text-right font-mono font-semibold" data-testid={`text-amount-${cost.id}`}>
                         ${Number(cost.amount).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {cost.shipmentId ? `Shipment` : cost.vehicleId ? `Vehicle` : '-'}
+                      <TableCell className="text-sm">
+                        {cost.shipmentId && cost.source === 'auto_shipment' ? (
+                          <Link href={`/shipments/${cost.shipmentId}`}>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0"
+                              data-testid={`link-shipment-${cost.id}`}
+                            >
+                              View Shipment
+                            </Button>
+                          </Link>
+                        ) : cost.shipmentId ? (
+                          'Shipment'
+                        ) : cost.vehicleId ? (
+                          'Vehicle'
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {cost.receiptUrl ? (
