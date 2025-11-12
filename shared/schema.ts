@@ -236,4 +236,4 @@ export type ShipmentStatus = 'in_transit' | 'arrived' | 'customs_cleared' | 'com
 export type VehicleStatus = 'in_transit' | 'in_stock' | 'sold';
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 export type ContractStatus = 'active' | 'pending' | 'completed';
-export type CostCategory = 'vehicle_purchase' | 'ground_transport' | 'customs_broker' | 'ocean_freight' | 'import_fees' | 'other';
+export type CostCategory = 'vehicle_purchase' | 'ground_transport_denver_florida' | 'customs_broker' | 'ocean_freight' | 'importer_registration' | 'bill_of_sale' | 'bill_of_lading' | 'other';

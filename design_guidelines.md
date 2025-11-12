@@ -1,236 +1,379 @@
-# Vehicle Import Partnership Dashboard - Design Guidelines
+# The Family Business - Mafia-Themed Import Tracker Design Guidelines
 
-## Design Approach
+## Design Philosophy
 
-**Selected Approach:** Design System-Based (Hybrid: Linear + Stripe Dashboard + Notion)
+**Theme:** Classic 1950s Mafia Noir meets Modern Business Intelligence
 
-**Rationale:** This is a data-heavy, utility-focused business application requiring maximum efficiency, clarity, and trust. Drawing from Linear's clean data visualization, Stripe's financial dashboard clarity, and Notion's document management patterns to create a professional tracking interface.
+**Aesthetic:** Dark, sophisticated, vintage ledger aesthetic with gold accents. Think "The Godfather" meets high-end financial dashboard—professional, powerful, and commanding respect.
 
 **Core Principles:**
-- Information density with clarity: Pack data intelligently without overwhelming
-- Trustworthy professionalism: This tracks significant financial partnerships
-- Scannable hierarchy: Users need to find critical data instantly
-- Action-oriented: Every view should lead to clear next steps
+- **Omertà (Silence/Discretion):** Clean, professional interface that doesn't advertise what it does
+- **The Books Never Lie:** Absolute precision in financial tracking and numbers
+- **Family First:** Partnership and profit-sharing front and center
+- **Respect:** Premium, sophisticated aesthetic worthy of serious business
+
+**Terminology Shifts:**
+- Dashboard → "The Books" or "The Office"
+- Shipments → "Operations"
+- Inventory → "The Vault" or "Assets"
+- Payments → "Collections"
+- Contracts → "Arrangements"
+- Costs → "The Ledger"
+- Partners → "The Family"
+- Profit → "The Take"
+
+---
+
+## Color Palette
+
+**Primary Colors (The Family Colors):**
+```css
+--don-gold: 33 80% 60%           /* Rich gold for accents and success */
+--blood-red: 0 65% 45%           /* Deep red for warnings/critical */
+--midnight: 220 20% 12%          /* Almost black background */
+--smoke: 220 15% 20%             /* Dark gray surfaces */
+--whiskey: 30 40% 25%            /* Warm brown for cards */
+```
+
+**Neutral Tones (The Shadows):**
+```css
+--ash: 220 10% 85%               /* Light text on dark */
+--fog: 220 8% 65%                /* Muted secondary text */
+--charcoal: 220 12% 35%          /* Borders and dividers */
+```
+
+**Status Colors (The Code):**
+```css
+--green-light: 145 55% 50%       /* Operations successful */
+--amber-warm: 38 85% 60%         /* Pending arrangements */
+--crimson: 355 75% 50%           /* Overdue collections */
+--silver: 200 10% 70%            /* Neutral status */
+```
+
+**Accent Highlights:**
+```css
+--velvet-purple: 280 45% 35%     /* Premium tier indicators */
+--cigar-brown: 25 50% 30%        /* Vintage document backgrounds */
+--champagne: 45 65% 85%          /* Subtle success highlights */
+```
 
 ---
 
 ## Typography System
 
-**Font Family:** Inter (primary) with SF Mono for tabular data
+**Primary Font:** "Crimson Pro" or "Playfair Display" (Serif - vintage ledger feel)
+**Secondary Font:** "Inter" or "Open Sans" (Sans-serif - modern readability)
+**Monospace Font:** "Courier Prime" or "IBM Plex Mono" (Typewriter aesthetic for numbers)
 
 **Hierarchy:**
-- **Page Headers:** 32px Bold (Dashboard titles)
-- **Section Headers:** 24px Semibold (Module sections)
-- **Card Headers:** 18px Semibold (Metric cards, table headers)
-- **Body Text:** 15px Regular (Form labels, descriptions)
-- **Small Text:** 13px Regular (Helper text, metadata)
-- **Tabular Data:** SF Mono 14px Medium (Numbers, currencies, VINs)
+- **Don's Orders (H1):** 36px Bold Serif - Main page titles
+- **Capo's Report (H2):** 28px Semibold Serif - Section headers
+- **Made Man's Notes (H3):** 20px Semibold Sans - Subsections
+- **The Paperwork (Body):** 15px Regular Sans - Standard text
+- **The Fine Print (Small):** 13px Regular Sans - Helper text
+- **The Numbers (Tabular):** 16px Monospace - All financial data
 
-**Special Typography Rules:**
-- All currency values: SF Mono with consistent decimal alignment
-- VINs and IDs: Uppercase, SF Mono for scannability
-- Status text: 13px Semibold, always uppercase
-- Metric numbers: 28px Bold for dashboard KPIs
-
----
-
-## Layout System
-
-**Spacing Primitives:** Tailwind units of 2, 4, 6, 8, 12, 16, 20, 24
-
-**Grid System:**
-- Container: max-w-7xl with px-6 horizontal padding
-- Sidebar: Fixed 16rem width (w-64)
-- Main content: flex-1 with py-8 vertical padding
-- Card spacing: gap-6 between cards
-- Section spacing: mb-12 between major sections
-
-**Sidebar Navigation:**
-- Fixed left sidebar, full height
-- Logo/company name at top (h-16)
-- Navigation items: py-3 px-4 per item
-- Active state: Border-left accent (border-l-4)
-- Icons: 20px, mr-3 spacing from labels
-
-**Top Bar:**
-- Fixed height: h-16
-- Horizontal padding: px-6
-- Search bar: max-w-md centered
-- Right-aligned utilities: gap-4 spacing
-
-**Content Area Layout:**
-- All content wrapped in max-w-7xl container
-- Page header: mb-8 with breadcrumbs
-- Metric cards grid: grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6
-- Data tables: Full width with horizontal scroll on mobile
+**Special Typography:**
+- Currency: Always Courier Prime, gold color for profits
+- VINs/IDs: Uppercase, monospace, slightly spaced (tracking-wide)
+- Status badges: Uppercase, 12px bold, extra letter-spacing
+- Dates: Format as "Dec 15, 2025" (classic style)
 
 ---
 
-## Component Library
+## Layout & Navigation
 
-### Dashboard Metric Cards
+**Sidebar Theme: "The Office Door"**
+- Dark background (--midnight)
+- Gold accent stripe on active items (--don-gold)
+- Icons: Gold when active, ash when inactive
+- Subtle separators between sections
+- User avatar at bottom: Circular with gold border
+
+**Navigation Labels (The Family Structure):**
+1. The Books (Dashboard) - Icon: BarChart3
+2. Operations (Shipments) - Icon: Truck  
+3. The Vault (Inventory/Vehicles) - Icon: Warehouse
+4. Arrangements (Contracts) - Icon: FileText
+5. The Take (Financials/Profit) - Icon: DollarSign
+6. Collections (Payments) - Icon: Handshake
+7. The Ledger (Costs) - Icon: Receipt
+
+**Content Area:**
+- Dark card backgrounds (--smoke or --whiskey)
+- Subtle shadows and depth
+- Gold accent borders for important metrics
+- Vintage paper texture overlay (very subtle, 5% opacity)
+
+---
+
+## Component Design
+
+### The Books - Dashboard Metric Cards
+**Style:** Dark cards with gold borders for key metrics
+
 **Structure:**
-- Card container: p-6, rounded-lg border
-- Icon circle: w-12 h-12, rounded-full at top
-- Label: text-sm, mb-2
-- Value: text-3xl font-bold (SF Mono for numbers)
-- Change indicator: text-sm with arrow icon
+```
+┌─────────────────────────┐
+│ [DollarSign icon-gold]  │
+│ THE TAKE THIS MONTH     │ (Small caps, fog color)
+│ $127,500               │ (Large, don-gold, monospace)
+│ ↑ +12.5% from last     │ (Small, green or red)
+└─────────────────────────┘
+```
 
-### Progress Indicators
-**$150K Goal Progress Bar:**
-- Container: h-3, rounded-full, w-full
-- Fill: h-3, rounded-full, transition-all
-- Label above: flex justify-between, text-sm
-- Percentage display: text-lg font-semibold below
+- Background: --smoke with subtle gradient
+- Border: 1px solid --don-gold (key metrics only)
+- Icon: Gold circle background, white icon
+- Numbers: Courier Prime, large and prominent
 
-**Status Timeline (Shipment Journey):**
-- Horizontal stepper layout
-- Each step: Relative container with connecting line
-- Completed steps: Filled circle (w-10 h-10)
-- Current step: Animated pulse
-- Future steps: Border-only circle
+### Status Badges (The Code Words)
+**Design:** Pill-shaped with icon prefixes
 
-### Status Badges
-**Design Pattern:** Inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase
-- Icon: w-4 h-4 mr-1.5 (truck, warehouse, checkmark, clock, dollar, warning)
-- Label: Letter-spacing: tracking-wide
+Examples:
+- `[Truck] IN TRANSIT` - Amber background
+- `[Package] IN THE VAULT` - Silver background  
+- `[CheckCircle] COLLECTED` - Green background
+- `[Clock] PENDING` - Red background
 
-### Data Tables
-**Structure:**
-- Table wrapper: overflow-x-auto, shadow border rounded-lg
-- Header row: Sticky top, backdrop-blur
-- Header cells: px-6 py-4, text-xs font-semibold uppercase tracking-wider
-- Body cells: px-6 py-4, text-sm
-- Row hover: Subtle background transition
-- Actions column: Right-aligned, gap-2 buttons
+Style: `px-3 py-1.5 rounded-full uppercase text-xs font-bold tracking-wider`
 
-**Special Columns:**
-- Photo thumbnails: w-16 h-16 rounded-lg object-cover
-- Currency: Right-aligned, tabular-nums (SF Mono)
-- Dates: Consistent format, text-sm opacity-75
-- VINs: Monospace, last 6 digits emphasized
+### Data Tables (The Ledger Pages)
+**Aesthetic:** Vintage accounting ledger meets modern table
 
-### Detail Pages
-**Layout Pattern:**
-- Two-column layout on lg+: grid-cols-1 lg:grid-cols-3 gap-8
-- Main content: lg:col-span-2
-- Sidebar: lg:col-span-1 (sticky top-8)
-- Section cards: mb-6 spacing
+- Background: Subtle --cigar-brown with paper texture
+- Headers: Uppercase, small, --fog color, bottom border --don-gold
+- Rows: Alternating subtle stripe (3% opacity difference)
+- Hover: Slight glow effect (--don-gold at 10% opacity)
+- Numbers: Right-aligned, monospace
+- Actions: Gold icon buttons on hover
 
-**Vehicle Detail Card:**
-- Photo gallery: Aspect-square grid-cols-2 gap-2, main image spans 2 rows
-- Specs grid: grid-cols-2 gap-x-8 gap-y-4
-- Cost breakdown: Divide-y layout with py-4 spacing
-- Total row: pt-4 mt-4 border-t-2, text-lg font-bold
+**Special Touches:**
+- First column (ID/VIN): Slightly bolder, gold text
+- Currency columns: Gold color, $ symbol
+- Status column: Badge format
+- Date columns: Vintage date format
 
-### Forms & Inputs
-**Input Fields:**
-- Container: mb-6
-- Label: block mb-2 text-sm font-medium
-- Input: w-full px-4 py-2.5 rounded-lg border
-- Helper text: mt-1.5 text-xs
-- Validation: Border state changes, error text below
+### Forms & Inputs (Filling Out the Paperwork)
+**Input Style:**
+- Dark background (--smoke)
+- Gold focus ring (--don-gold)
+- Placeholder text in --fog
+- Labels: Small caps, slightly spaced
+- Required fields: Gold asterisk
 
-**File Upload:**
-- Dropzone: Border-2 border-dashed rounded-lg p-12 text-center
-- Icon: w-12 h-12 mx-auto mb-4
-- Text: "Drag & drop or click to upload"
-- Accepted formats: text-xs mt-2
+**File Upload Areas:**
+- Dashed gold border
+- Icon: Vintage file folder
+- Text: "Drop the paperwork here"
+- Accepted formats: "Bills of Sale, Bills of Lading, Receipts"
 
-**Select Dropdowns:**
-- Styled consistently with text inputs
-- Chevron icon: Absolute right, pointer-events-none
-- Options: py-2 px-4 hover states
+### Buttons (Taking Action)
 
-### Action Buttons
-**Primary:** px-6 py-3 rounded-lg font-medium shadow-sm
-**Secondary:** px-6 py-3 rounded-lg font-medium border-2
-**Icon Buttons:** p-2 rounded-lg (for table actions)
-**Button Groups:** flex gap-3 justify-end
+**Primary (The Boss's Order):**
+- Background: Linear gradient --don-gold
+- Text: --midnight (dark text on gold)
+- Hover: Brighten 10%
+- Shadow: Subtle gold glow
 
-### Document Preview
-**Embedded PDF View:**
-- Container: aspect-[8.5/11] rounded-lg border overflow-hidden
-- Full-screen button: Absolute top-4 right-4
-- Download button: Absolute top-4 right-16
+**Secondary (Capo's Suggestion):**
+- Border: 2px solid --don-gold
+- Background: transparent
+- Text: --don-gold
+- Hover: Fill with gold at 20% opacity
 
-### Charts & Visualizations
-**Line Chart (Inventory Growth):**
-- Container: h-80 w-full p-6
-- Clean grid lines, minimal decoration
-- Data points emphasized with dots
-- Tooltip on hover with exact values
+**Danger (Breaking Protocol):**
+- Background: --blood-red
+- Text: white
+- Use sparingly (delete actions only)
 
-**Pie Chart (Portfolio Composition):**
-- Size: w-64 h-64 mx-auto
-- Legend: Below chart, flex flex-wrap gap-4
-- Interactive segments on hover
-
-**Bar Chart (Price Comparison):**
-- Horizontal bars for better label readability
-- Target vs Actual: Grouped bars pattern
-- Gap between groups: mb-3
+### Progress Bars (The Take Progress)
+**$150K Goal Tracker styled as:**
+- Container: Dark with embossed edges
+- Fill: Gold gradient (--don-gold)
+- Label: "The Family's Take" in serif font
+- Percentage: Large, monospace, gold
+- Milestone markers at key points
 
 ---
 
-## Responsive Strategy
+## Icons & Imagery
 
-**Breakpoints:**
-- Mobile: < 768px - Stack all layouts, simplified tables
-- Tablet: 768px - 1024px - Two-column grids, visible sidebar toggle
-- Desktop: > 1024px - Full layout with persistent sidebar
+**Icon Style:**
+- Lucide icons with 2px stroke
+- Gold color for active/important states
+- White/ash for inactive states
+- Slightly larger than typical (20px minimum)
 
-**Mobile Adaptations:**
-- Sidebar: Overlay drawer, toggle with hamburger menu
-- Metric cards: Single column stack
-- Tables: Horizontal scroll with sticky first column OR card-based view for key tables
-- Forms: Full-width, larger touch targets (min-h-12)
-
----
-
-## Navigation & Information Architecture
-
-**Sidebar Menu Structure:**
-1. Dashboard (home icon)
-2. Shipments (truck icon)
-3. Inventory (grid icon)
-4. Contracts (document icon)
-5. Financials (chart-bar icon)
-6. Payments (currency icon)
-7. Costs (receipt icon)
-8. Reports (folder icon)
-9. Settings (cog icon)
-
-**Breadcrumbs:**
-- Below top bar: text-sm, flex items-center gap-2
-- Chevron separators: opacity-50
-- Last item: font-semibold (current page)
-
----
-
-## Animations
-
-**Use Sparingly:**
-- Metric card numbers: Count-up animation on load (2 seconds)
-- Progress bars: Width transition (300ms ease)
-- Table row hover: Background transition (150ms)
-- Status badge changes: Subtle scale pulse
-- NO scroll-triggered animations
-- NO parallax effects
-
----
-
-## Images
+**Thematic Icon Choices (Lucide Icons):**
+- Money: DollarSign, Coins, Banknote
+- Operations: Truck, Package, Ship
+- Vault: Warehouse, Lock, Building
+- Arrangements: FileText, ScrollText, FileSignature
+- Collections: Handshake, CircleDollarSign, Receipt
+- Success: CheckCircle, CheckCircle2
+- Warning: AlertTriangle, AlertCircle
 
 **Vehicle Photos:**
-- Required for all vehicle inventory entries
-- Primary placement: Vehicle detail pages (hero gallery)
-- Secondary: Thumbnail in inventory table (64x64px rounded)
-- Aspect ratio: 4:3 for main photos
-- Fallback: Vehicle icon placeholder for missing photos
+- Sepia tone filter option (subtle vintage effect)
+- Gold border on featured vehicles
+- Film grain texture overlay (5% opacity)
 
-**Document Thumbnails:**
-- Receipt/contract preview icons (file-type based)
-- PDF preview: First page thumbnail (aspect-[8.5/11])
+**Document Previews:**
+- Vintage paper background
+- Embossed stamp effect for "PAID" or "APPROVED"
+- Slightly yellowed/aged aesthetic
 
-**No marketing imagery** - This is a utility dashboard focused on data and functionality.
+---
+
+## Micro-interactions & Animations
+
+**Philosophy:** Smooth and sophisticated, never flashy
+
+**Key Animations:**
+- Metric countup: Vintage odometer rolling effect
+- Button hover: Subtle gold glow pulse
+- Table row hover: Smooth highlight slide-in from left
+- Toast notifications: Slide from top-right with gold accent border
+- Loading states: Gold spinner with vintage style
+- Success actions: Brief gold particle burst (very subtle)
+
+**Timing:**
+- Fast transitions: 150ms
+- Standard: 250ms  
+- Deliberate (important actions): 400ms
+
+---
+
+## Responsive Design
+
+**Mobile: "The Pocket Ledger"**
+- Collapsing sidebar to Menu icon (gold color)
+- Metric cards stack vertically
+- Tables convert to card view with gold headers
+- Touch targets minimum 48px
+
+**Tablet: "The Travel Office"**
+- Sidebar overlay drawer
+- Two-column metric grid
+- Simplified tables with scroll
+
+**Desktop: "The Full Office"**
+- Permanent sidebar
+- Four-column metric grid
+- Full data tables with all columns
+
+---
+
+## Special Pages
+
+### The Books (Dashboard)
+- Hero metric: "THE FAMILY'S TAKE" - Large, centered, gold
+- Progress bar to $150K goal prominent at top
+- Metric cards in 2x2 grid
+- Recent operations timeline (vintage style)
+- Quick actions: Gold buttons
+
+### Operations (Shipments)
+- Map view optional: Denver → Florida → Boat → Honduras route
+- Timeline view of each shipment's journey
+- Cost breakdown per operation in ledger style
+
+### The Vault (Vehicle Inventory)
+- Card grid view with photos
+- Filters: "In Transit", "In the Vault", "Moved" (sold)
+- Each card shows: Photo, year/make/model, purchase price, days in vault
+- Sort by: Most profitable, oldest inventory, newest arrivals
+
+### Collections (Payments)
+- Overdue items highlighted in red with Clock icon
+- Collected items show CheckCircle icon with green subtle background
+- Due dates count down in days ("3 days left")
+- Sorting by urgency
+
+### The Ledger (Costs)
+- Categorized view: Denver→Florida, Customs, Ocean Freight, etc.
+- Receipt attachments shown as vintage paper icons
+- Running total at bottom in gold
+- Monthly breakdowns
+
+---
+
+## Dark Mode (Default & Only Mode)
+
+This theme IS the dark mode. No light mode option—the aesthetic requires darkness.
+
+**Background hierarchy:**
+- Page background: --midnight
+- Card/surface: --smoke
+- Elevated cards: --whiskey
+- Input backgrounds: --charcoal
+
+**Text hierarchy:**
+- Primary: --ash (light gray, high contrast)
+- Secondary: --fog (medium gray)
+- Tertiary: --charcoal (low emphasis)
+- Accent: --don-gold (important items)
+
+---
+
+## Terminology Dictionary
+
+Use these throughout the UI:
+
+| Standard Term | Mafia Theme |
+|--------------|-------------|
+| Dashboard | The Books |
+| Partners | The Family |
+| Investor | Don / Patron |
+| Dealer Partner | Capo / Associate |
+| Profit | The Take |
+| Shipment | Operation |
+| Inventory | The Vault / Assets |
+| Payment | Collection |
+| Overdue | Outstanding Business |
+| Contract | Arrangement |
+| Document | Paperwork |
+| Cost/Expense | The Ledger Entry |
+| Create New | Open New Business |
+| Delete | Close the Books On |
+| Success | Clean Operation |
+| Error | Complications |
+
+---
+
+## Example UI Text Snippets
+
+**Dashboard Welcome:**
+"Welcome back to The Office"
+
+**Empty States:**
+- "No operations in progress"
+- "The vault is empty"
+- "No outstanding collections"
+- "The ledger is clean"
+
+**Success Messages:**
+- "Operation recorded successfully"
+- "Collection marked as paid"
+- "New asset added to the vault"
+- "The paperwork is in order"
+
+**CTAs:**
+- "Record New Operation"
+- "Add to the Vault"
+- "Mark as Collected"
+- "Review the Books"
+
+---
+
+## Professional Balance
+
+**Important:** While themed, this must remain professional and usable:
+- No actual mafia imagery (no guns, violence, etc.)
+- Terminology is subtle and sophisticated
+- Can be shown to business partners without concern
+- Focus on vintage luxury/premium business aesthetic
+- The "mafia" is in the styling, not explicit references
+
+Think: Private members club, vintage luxury, old-money sophistication.
