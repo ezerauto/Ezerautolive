@@ -5,6 +5,10 @@ import {
   payments,
   contracts,
   costs,
+  contractTemplates,
+  contractWorkflows,
+  workflowPhases,
+  phaseDocuments,
   type User,
   type UpsertUser,
   type Vehicle,
@@ -17,6 +21,14 @@ import {
   type InsertContract,
   type Cost,
   type InsertCost,
+  type ContractTemplate,
+  type InsertContractTemplate,
+  type ContractWorkflow,
+  type InsertContractWorkflow,
+  type WorkflowPhase,
+  type InsertWorkflowPhase,
+  type PhaseDocument,
+  type InsertPhaseDocument,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -58,6 +70,30 @@ export interface IStorage {
   listCosts(filter?: { shipmentId?: string; vehicleId?: string }): Promise<Cost[]>;
   updateCost(id: string, updates: Partial<InsertCost>): Promise<Cost>;
   deleteCost(id: string): Promise<void>;
+  
+  // Contract template operations
+  createContractTemplate(template: InsertContractTemplate): Promise<ContractTemplate>;
+  getContractTemplate(id: string): Promise<ContractTemplate | undefined>;
+  listContractTemplates(): Promise<ContractTemplate[]>;
+  updateContractTemplate(id: string, updates: Partial<InsertContractTemplate>): Promise<ContractTemplate>;
+  
+  // Contract workflow operations
+  createContractWorkflow(workflow: InsertContractWorkflow): Promise<ContractWorkflow>;
+  getContractWorkflow(id: string): Promise<ContractWorkflow | undefined>;
+  listContractWorkflows(filter?: { shipmentId?: string; status?: string }): Promise<ContractWorkflow[]>;
+  updateContractWorkflow(id: string, updates: Partial<InsertContractWorkflow>): Promise<ContractWorkflow>;
+  
+  // Workflow phase operations
+  createWorkflowPhase(phase: InsertWorkflowPhase): Promise<WorkflowPhase>;
+  getWorkflowPhase(id: string): Promise<WorkflowPhase | undefined>;
+  listWorkflowPhases(workflowId: string): Promise<WorkflowPhase[]>;
+  updateWorkflowPhase(id: string, updates: Partial<InsertWorkflowPhase>): Promise<WorkflowPhase>;
+  
+  // Phase document operations
+  createPhaseDocument(document: InsertPhaseDocument): Promise<PhaseDocument>;
+  getPhaseDocument(id: string): Promise<PhaseDocument | undefined>;
+  listPhaseDocuments(phaseId: string): Promise<PhaseDocument[]>;
+  updatePhaseDocument(id: string, updates: Partial<InsertPhaseDocument>): Promise<PhaseDocument>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -234,6 +270,113 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCost(id: string): Promise<void> {
     await db.delete(costs).where(eq(costs.id, id));
+  }
+
+  // Contract template operations
+  async createContractTemplate(templateData: InsertContractTemplate): Promise<ContractTemplate> {
+    const [template] = await db.insert(contractTemplates).values(templateData).returning();
+    return template;
+  }
+
+  async getContractTemplate(id: string): Promise<ContractTemplate | undefined> {
+    const [template] = await db.select().from(contractTemplates).where(eq(contractTemplates.id, id));
+    return template;
+  }
+
+  async listContractTemplates(): Promise<ContractTemplate[]> {
+    return db.select().from(contractTemplates).where(eq(contractTemplates.isActive, true)).orderBy(desc(contractTemplates.createdAt));
+  }
+
+  async updateContractTemplate(id: string, updates: Partial<InsertContractTemplate>): Promise<ContractTemplate> {
+    const [template] = await db
+      .update(contractTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, id))
+      .returning();
+    return template;
+  }
+
+  // Contract workflow operations
+  async createContractWorkflow(workflowData: InsertContractWorkflow): Promise<ContractWorkflow> {
+    const [workflow] = await db.insert(contractWorkflows).values(workflowData).returning();
+    return workflow;
+  }
+
+  async getContractWorkflow(id: string): Promise<ContractWorkflow | undefined> {
+    const [workflow] = await db.select().from(contractWorkflows).where(eq(contractWorkflows.id, id));
+    return workflow;
+  }
+
+  async listContractWorkflows(filter?: { shipmentId?: string; status?: string }): Promise<ContractWorkflow[]> {
+    if (filter?.shipmentId && filter?.status) {
+      return db.select().from(contractWorkflows)
+        .where(and(eq(contractWorkflows.shipmentId, filter.shipmentId), eq(contractWorkflows.status, filter.status)))
+        .orderBy(desc(contractWorkflows.createdAt));
+    }
+    if (filter?.shipmentId) {
+      return db.select().from(contractWorkflows).where(eq(contractWorkflows.shipmentId, filter.shipmentId)).orderBy(desc(contractWorkflows.createdAt));
+    }
+    if (filter?.status) {
+      return db.select().from(contractWorkflows).where(eq(contractWorkflows.status, filter.status)).orderBy(desc(contractWorkflows.createdAt));
+    }
+    return db.select().from(contractWorkflows).orderBy(desc(contractWorkflows.createdAt));
+  }
+
+  async updateContractWorkflow(id: string, updates: Partial<InsertContractWorkflow>): Promise<ContractWorkflow> {
+    const [workflow] = await db
+      .update(contractWorkflows)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractWorkflows.id, id))
+      .returning();
+    return workflow;
+  }
+
+  // Workflow phase operations
+  async createWorkflowPhase(phaseData: InsertWorkflowPhase): Promise<WorkflowPhase> {
+    const [phase] = await db.insert(workflowPhases).values(phaseData).returning();
+    return phase;
+  }
+
+  async getWorkflowPhase(id: string): Promise<WorkflowPhase | undefined> {
+    const [phase] = await db.select().from(workflowPhases).where(eq(workflowPhases.id, id));
+    return phase;
+  }
+
+  async listWorkflowPhases(workflowId: string): Promise<WorkflowPhase[]> {
+    return db.select().from(workflowPhases).where(eq(workflowPhases.workflowId, workflowId)).orderBy(workflowPhases.sequenceOrder);
+  }
+
+  async updateWorkflowPhase(id: string, updates: Partial<InsertWorkflowPhase>): Promise<WorkflowPhase> {
+    const [phase] = await db
+      .update(workflowPhases)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(workflowPhases.id, id))
+      .returning();
+    return phase;
+  }
+
+  // Phase document operations
+  async createPhaseDocument(documentData: InsertPhaseDocument): Promise<PhaseDocument> {
+    const [document] = await db.insert(phaseDocuments).values(documentData).returning();
+    return document;
+  }
+
+  async getPhaseDocument(id: string): Promise<PhaseDocument | undefined> {
+    const [document] = await db.select().from(phaseDocuments).where(eq(phaseDocuments.id, id));
+    return document;
+  }
+
+  async listPhaseDocuments(phaseId: string): Promise<PhaseDocument[]> {
+    return db.select().from(phaseDocuments).where(eq(phaseDocuments.phaseId, phaseId)).orderBy(desc(phaseDocuments.createdAt));
+  }
+
+  async updatePhaseDocument(id: string, updates: Partial<InsertPhaseDocument>): Promise<PhaseDocument> {
+    const [document] = await db
+      .update(phaseDocuments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(phaseDocuments.id, id))
+      .returning();
+    return document;
   }
 }
 

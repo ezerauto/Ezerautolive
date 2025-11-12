@@ -4,7 +4,19 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { insertShipmentSchema, insertVehicleSchema, updateVehicleSchema, bulkImportVehicleSchema, insertPaymentSchema, insertContractSchema, insertCostSchema } from "@shared/schema";
+import { 
+  insertShipmentSchema, 
+  insertVehicleSchema, 
+  updateVehicleSchema, 
+  bulkImportVehicleSchema, 
+  insertPaymentSchema, 
+  insertContractSchema, 
+  insertCostSchema,
+  insertContractTemplateSchema,
+  insertContractWorkflowSchema,
+  insertWorkflowPhaseSchema,
+  insertPhaseDocumentSchema
+} from "@shared/schema";
 
 const GOAL_AMOUNT = 150000;
 
@@ -415,6 +427,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating contract:", error);
       res.status(400).json({ message: error.message || "Failed to create contract" });
+    }
+  });
+
+  // Contract template routes
+  app.get('/api/contract-templates', isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.listContractTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching contract templates:", error);
+      res.status(500).json({ message: "Failed to fetch contract templates" });
+    }
+  });
+
+  app.post('/api/contract-templates', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertContractTemplateSchema.parse(req.body);
+      const template = await storage.createContractTemplate(validated);
+      res.status(201).json(template);
+    } catch (error: any) {
+      console.error("Error creating contract template:", error);
+      res.status(400).json({ message: error.message || "Failed to create contract template" });
+    }
+  });
+
+  // Contract workflow routes
+  app.get('/api/workflows', isAuthenticated, async (req, res) => {
+    try {
+      const { shipmentId, status } = req.query;
+      const workflows = await storage.listContractWorkflows({ 
+        shipmentId: shipmentId as string, 
+        status: status as string 
+      });
+      res.json(workflows);
+    } catch (error) {
+      console.error("Error fetching workflows:", error);
+      res.status(500).json({ message: "Failed to fetch workflows" });
+    }
+  });
+
+  app.get('/api/workflows/:id', isAuthenticated, async (req, res) => {
+    try {
+      const workflow = await storage.getContractWorkflow(req.params.id);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      // Get phases with documents
+      const phases = await storage.listWorkflowPhases(workflow.id);
+      const phasesWithDocuments = await Promise.all(
+        phases.map(async (phase) => {
+          const documents = await storage.listPhaseDocuments(phase.id);
+          return { ...phase, documents };
+        })
+      );
+      
+      res.json({ ...workflow, phases: phasesWithDocuments });
+    } catch (error) {
+      console.error("Error fetching workflow:", error);
+      res.status(500).json({ message: "Failed to fetch workflow" });
+    }
+  });
+
+  app.post('/api/workflows', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user?.claims?.sub) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const validated = insertContractWorkflowSchema.parse(req.body);
+      const workflow = await storage.createContractWorkflow({
+        ...validated,
+        createdBy: req.user.claims.sub,
+      });
+      res.status(201).json(workflow);
+    } catch (error: any) {
+      console.error("Error creating workflow:", error);
+      res.status(400).json({ message: error.message || "Failed to create workflow" });
+    }
+  });
+
+  app.put('/api/workflows/:id', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertContractWorkflowSchema.partial().parse(req.body);
+      const workflow = await storage.updateContractWorkflow(req.params.id, validated);
+      res.json(workflow);
+    } catch (error: any) {
+      console.error("Error updating workflow:", error);
+      res.status(400).json({ message: error.message || "Failed to update workflow" });
+    }
+  });
+
+  // Workflow phase routes
+  app.post('/api/workflows/:id/phases', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertWorkflowPhaseSchema.parse(req.body);
+      const phase = await storage.createWorkflowPhase({
+        ...validated,
+        workflowId: req.params.id,
+      });
+      res.status(201).json(phase);
+    } catch (error: any) {
+      console.error("Error creating phase:", error);
+      res.status(400).json({ message: error.message || "Failed to create phase" });
+    }
+  });
+
+  app.put('/api/phases/:id', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertWorkflowPhaseSchema.partial().parse(req.body);
+      const phase = await storage.updateWorkflowPhase(req.params.id, validated);
+      res.json(phase);
+    } catch (error: any) {
+      console.error("Error updating phase:", error);
+      res.status(400).json({ message: error.message || "Failed to update phase" });
+    }
+  });
+
+  // Phase document routes
+  app.post('/api/phases/:id/documents', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertPhaseDocumentSchema.parse(req.body);
+      const document = await storage.createPhaseDocument({
+        ...validated,
+        phaseId: req.params.id,
+      });
+      res.status(201).json(document);
+    } catch (error: any) {
+      console.error("Error creating document:", error);
+      res.status(400).json({ message: error.message || "Failed to create document" });
+    }
+  });
+
+  app.put('/api/documents/:id', isAuthenticated, async (req, res) => {
+    try {
+      const validated = insertPhaseDocumentSchema.partial().parse(req.body);
+      const document = await storage.updatePhaseDocument(req.params.id, validated);
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error updating document:", error);
+      res.status(400).json({ message: error.message || "Failed to update document" });
     }
   });
 
