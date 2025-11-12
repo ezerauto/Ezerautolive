@@ -70,6 +70,14 @@ Preferred communication style: Simple, everyday language.
   - Shipment costs (ground transport, customs, ocean freight, import fees) are allocated across vehicles based on purchase price weight
   - Both shipment built-in cost fields and costs table entries are combined
   - Ensures accurate profit calculations that include all expenses
+- **Auto-Generated Cost Ledger**: Shipment operation costs automatically sync to ledger
+  - When shipments are created or updated, operation costs (ground transport, customs broker fees, ocean freight, import fees) automatically generate ledger entries
+  - Transactional atomicity: shipment changes and cost sync commit or roll back together
+  - Source tracking: auto-generated costs marked with source='auto_shipment', distinct from manual entries
+  - Unique constraint prevents duplicate auto costs: (shipmentId, category, source)
+  - Users can add receipts and notes to auto-generated costs but must edit shipments to adjust amounts
+  - Setting a cost to 0 automatically removes the corresponding ledger entry
+  - ON DELETE CASCADE automatically cleans up auto costs when shipments are deleted
 - **Profit Distribution**: Calculated based on progress toward $150K reinvestment goal
   - Progress starts at $0 and grows only from reinvested profits (60% of gross profit)
   - During reinvestment phase (< $150K progress): 60% reinvested, 20% each to Dominick and Tony
@@ -92,7 +100,10 @@ Preferred communication style: Simple, everyday language.
 - Vehicles: VIN, make/model, costs, sale price, status, shipment association
 - Payments: Vehicle reference, amounts, due dates, payment status
 - Contracts: Type (partnership, inspection, sale), parties, dates, document URLs
-- Costs: Category (vehicle purchase, transport, customs, etc.), amounts, descriptions
+- Costs: Category, amounts, descriptions, source tracking (auto_shipment | manual), receipt URLs, notes
+  - Auto-generated costs synced from shipment operations
+  - Manual costs created directly by users
+  - Unique constraint on (shipmentId, category, source) for auto_shipment entries
 
 **Relationships:**
 - Vehicles → Shipments (many-to-one)
