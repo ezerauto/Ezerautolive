@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates = req.body;
       const vehicle = await storage.updateVehicle(req.params.id, updates);
       
-      // If vehicle was sold, create payment record
+      // If vehicle was sold, create payment record and profit distribution
       if (updates.status === 'sold' && updates.actualSalePrice) {
         // Calculate cumulative reinvestment from previous sales
         const allVehicles = await storage.listVehicles();
@@ -546,6 +546,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dueDate,
           status: 'pending',
         });
+        
+        // Generate profit distribution for both partners
+        const { generateProfitDistribution } = await import('./services/profitDistributionService');
+        await generateProfitDistribution(vehicle, allVehicles, allCosts, allShipments);
       }
       
       res.json(vehicle);
@@ -1161,6 +1165,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const publicURL = `/objects/uploads/${objectId}`;
     
     res.json({ uploadURL, publicURL });
+  });
+
+  // Profit distribution routes
+  app.get('/api/profit-distributions', isAuthenticated, async (req, res) => {
+    try {
+      const distributions = await storage.listProfitDistributions();
+      res.json(distributions);
+    } catch (error) {
+      console.error("Error fetching profit distributions:", error);
+      res.status(500).json({ message: "Failed to fetch profit distributions" });
+    }
+  });
+
+  app.get('/api/profit-distribution-entries', isAuthenticated, async (req, res) => {
+    try {
+      const { distributionId, partner, status } = req.query;
+      const entries = await storage.listProfitDistributionEntries({
+        distributionId: distributionId as string | undefined,
+        partner: partner as string | undefined,
+        status: status as string | undefined,
+      });
+      res.json(entries);
+    } catch (error) {
+      console.error("Error fetching profit distribution entries:", error);
+      res.status(500).json({ message: "Failed to fetch profit distribution entries" });
+    }
+  });
+
+  app.patch('/api/profit-distribution-entries/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { status, closedDate, notes, paymentId } = req.body;
+      const updates: any = {};
+      
+      if (status !== undefined) updates.status = status;
+      if (closedDate !== undefined) updates.closedDate = closedDate;
+      if (notes !== undefined) updates.notes = notes;
+      if (paymentId !== undefined) updates.paymentId = paymentId;
+      
+      const entry = await storage.updateProfitDistributionEntry(req.params.id, updates);
+      res.json(entry);
+    } catch (error) {
+      console.error("Error updating profit distribution entry:", error);
+      res.status(500).json({ message: "Failed to update profit distribution entry" });
+    }
   });
 
   const httpServer = createServer(app);
