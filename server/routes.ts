@@ -447,36 +447,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold');
       const currentInventoryValue = unsoldVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
       
+      const payments = await storage.listPayments();
+      
       let totalGrossProfit = 0;
       let dominickEarnings = 0;
       let tonyEarnings = 0;
       let reinvestmentBalance = 0;
       
-      const profitByVehicle = await Promise.all(soldVehicles.map(async (v) => {
-        const grossProfit = Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0);
-        const { dominickShare, tonyShare, reinvestmentPhase } = calculateProfitDistribution(grossProfit, currentInventoryValue);
-        
-        totalGrossProfit += grossProfit;
-        dominickEarnings += dominickShare;
-        tonyEarnings += tonyShare;
-        if (reinvestmentPhase) {
-          reinvestmentBalance += dominickShare;
+      // Group sold vehicles by shipment
+      const vehiclesByShipment = new Map<string | null, typeof soldVehicles>();
+      soldVehicles.forEach(v => {
+        const shipmentKey = v.shipmentId || 'no_shipment';
+        if (!vehiclesByShipment.has(shipmentKey)) {
+          vehiclesByShipment.set(shipmentKey, []);
         }
+        vehiclesByShipment.get(shipmentKey)!.push(v);
+      });
+      
+      // Calculate profit distribution at shipment level
+      const shipmentDistributions = new Map<string, { dominickShare: number; tonyShare: number; reinvestmentPhase: boolean }>();
+      
+      vehiclesByShipment.forEach((vehicles, shipmentKey) => {
+        // Calculate total shipment profit
+        const shipmentProfit = vehicles.reduce((sum, v) => 
+          sum + (Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0)), 0
+        );
         
-        const payments = await storage.listPayments();
+        // Calculate distribution for entire shipment
+        const distribution = calculateProfitDistribution(shipmentProfit, currentInventoryValue);
+        shipmentDistributions.set(shipmentKey, distribution);
+        
+        totalGrossProfit += shipmentProfit;
+        dominickEarnings += distribution.dominickShare;
+        tonyEarnings += distribution.tonyShare;
+        
+        if (distribution.reinvestmentPhase) {
+          reinvestmentBalance += distribution.dominickShare;
+        }
+      });
+      
+      // Build per-vehicle data with proportional allocation of shipment distribution
+      const profitByVehicle = soldVehicles.map(v => {
+        const shipmentKey = v.shipmentId || 'no_shipment';
+        const shipmentVehicles = vehiclesByShipment.get(shipmentKey)!;
+        const shipmentDistribution = shipmentDistributions.get(shipmentKey)!;
+        
+        const vehicleProfit = Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0);
+        const shipmentTotalProfit = shipmentVehicles.reduce((sum, sv) => 
+          sum + (Number(sv.actualSalePrice || 0) - Number(sv.purchasePrice || 0)), 0
+        );
+        
+        // Allocate shipment distribution proportionally to this vehicle
+        const vehicleProportion = shipmentTotalProfit > 0 ? vehicleProfit / shipmentTotalProfit : 0;
+        const vehicleDominickShare = shipmentDistribution.dominickShare * vehicleProportion;
+        const vehicleTonyShare = shipmentDistribution.tonyShare * vehicleProportion;
+        
         const vehiclePayment = payments.find(p => p.vehicleId === v.id);
         
         return {
           vehicleName: `${v.year} ${v.make} ${v.model}`,
           salePrice: Number(v.actualSalePrice || 0),
           totalCost: Number(v.purchasePrice || 0),
-          grossProfit,
-          reinvestment: reinvestmentPhase ? dominickShare : 0,
-          dominickShare,
-          tonyShare,
+          grossProfit: vehicleProfit,
+          reinvestment: shipmentDistribution.reinvestmentPhase ? vehicleDominickShare : 0,
+          dominickShare: vehicleDominickShare,
+          tonyShare: vehicleTonyShare,
           paymentStatus: vehiclePayment?.status || 'pending',
         };
-      }));
+      });
       
       const costBreakdown = [
         { name: 'Purchase Price', value: allVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0) },
