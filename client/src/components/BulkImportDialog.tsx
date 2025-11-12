@@ -42,14 +42,24 @@ export function BulkImportDialog() {
           return typeof key === "string" && key.startsWith("/api/vehicles");
         }
       });
-      toast({
-        title: "Import completed",
-        description: `Successfully imported ${data.success} vehicle(s). ${data.failed > 0 ? `Failed: ${data.failed}` : ''}`,
-      });
-      setOpen(false);
-      setFile(null);
-      setPreview([]);
-      setErrors([]);
+      
+      if (data.errors && data.errors.length > 0) {
+        setErrors(data.errors.map((e: any) => `Row ${e.row}: ${e.error}`));
+        toast({
+          variant: data.success > 0 ? "default" : "destructive",
+          title: data.success > 0 ? "Partial import completed" : "Import failed",
+          description: `Successfully imported ${data.success} vehicle(s). Failed: ${data.failed}`,
+        });
+      } else {
+        toast({
+          title: "Import completed",
+          description: `Successfully imported ${data.success} vehicle(s).`,
+        });
+        setOpen(false);
+        setFile(null);
+        setPreview([]);
+        setErrors([]);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -73,17 +83,25 @@ export function BulkImportDialog() {
       complete: (results) => {
         const mapped = results.data.map((row: any) => {
           // Map CSV columns to vehicle schema
+          const mileageValue = row.Mileage || row.mileage || row.odometer || row.Odometer;
+          const statusValue = row.Status || row.status || "";
+          const statusMap: Record<string, string> = {
+            "For Sale": "in_stock",
+            "In Transit": "in_transit",
+            "Sold": "sold",
+          };
+          
           return {
             vin: row.VIN || row.vin || "",
             make: row.Make || row.make || "",
             model: row.Model || row.model || "",
             year: row.Year || row.year ? parseInt(row.Year || row.year) : undefined,
             purchasePrice: row["Purchase Price"] || row.purchasePrice || row.purchase_price || "",
-            targetSalePrice: row["Target Sale Price"] || row.targetSalePrice || row.target_sale_price || "",
-            status: row.Status || row.status || "in_transit",
-            shipmentId: row["Shipment ID"] || row.shipmentId || row.shipment_id || null,
-            mileage: row.Mileage || row.mileage ? parseInt(row.Mileage || row.mileage) : undefined,
-            condition: row.Condition || row.condition || "",
+            purchaseDate: row["Purchase Date"] || row.purchaseDate || row.purchase_date || new Date().toISOString(),
+            targetSalePrice: row["Target Sale Price"] || row.targetSalePrice || row.target_sale_price || null,
+            status: statusMap[statusValue] || statusValue.toLowerCase().replace(/\s+/g, '_') || "in_stock",
+            shipmentId: null,
+            odometer: mileageValue && mileageValue !== "Exempt" ? parseInt(mileageValue) : null,
             color: row.Color || row.color || "",
           };
         });
@@ -102,19 +120,29 @@ export function BulkImportDialog() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const mapped = results.data.map((row: any) => ({
-          vin: row.VIN || row.vin || "",
-          make: row.Make || row.make || "",
-          model: row.Model || row.model || "",
-          year: row.Year || row.year ? parseInt(row.Year || row.year) : undefined,
-          purchasePrice: row["Purchase Price"] || row.purchasePrice || row.purchase_price || "",
-          targetSalePrice: row["Target Sale Price"] || row.targetSalePrice || row.target_sale_price || "",
-          status: row.Status || row.status || "in_transit",
-          shipmentId: row["Shipment ID"] || row.shipmentId || row.shipment_id || null,
-          mileage: row.Mileage || row.mileage ? parseInt(row.Mileage || row.mileage) : undefined,
-          condition: row.Condition || row.condition || "",
-          color: row.Color || row.color || "",
-        }));
+        const mapped = results.data.map((row: any) => {
+          const mileageValue = row.Mileage || row.mileage || row.odometer || row.Odometer;
+          const statusValue = row.Status || row.status || "";
+          const statusMap: Record<string, string> = {
+            "For Sale": "in_stock",
+            "In Transit": "in_transit",
+            "Sold": "sold",
+          };
+          
+          return {
+            vin: row.VIN || row.vin || "",
+            make: row.Make || row.make || "",
+            model: row.Model || row.model || "",
+            year: row.Year || row.year ? parseInt(row.Year || row.year) : undefined,
+            purchasePrice: row["Purchase Price"] || row.purchasePrice || row.purchase_price || "",
+            purchaseDate: row["Purchase Date"] || row.purchaseDate || row.purchase_date || new Date().toISOString(),
+            targetSalePrice: row["Target Sale Price"] || row.targetSalePrice || row.target_sale_price || null,
+            status: statusMap[statusValue] || statusValue.toLowerCase().replace(/\s+/g, '_') || "in_stock",
+            shipmentId: null,
+            odometer: mileageValue && mileageValue !== "Exempt" ? parseInt(mileageValue) : null,
+            color: row.Color || row.color || "",
+          };
+        });
         importMutation.mutate(mapped);
       },
     });
@@ -132,7 +160,7 @@ export function BulkImportDialog() {
         <DialogHeader>
           <DialogTitle>Bulk Import Vehicles</DialogTitle>
           <DialogDescription>
-            Upload a CSV file with vehicle data. Supported columns: VIN, Make, Model, Year, Purchase Price, Target Sale Price, Status, Shipment ID, Mileage, Condition, Color
+            Upload a CSV file with vehicle data. Required: VIN, Make, Model, Year, Purchase Price. Optional: Target Sale Price, Status, Mileage, Color. Purchase Date defaults to today if not provided.
           </DialogDescription>
         </DialogHeader>
 
