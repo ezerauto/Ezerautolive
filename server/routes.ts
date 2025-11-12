@@ -260,6 +260,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validated = insertShipmentSchema.parse(req.body);
       const shipment = await storage.createShipment(validated);
+      
+      // Sync shipment costs to ledger
+      try {
+        const { syncShipmentCostsToLedger } = await import('./services/costSync');
+        await syncShipmentCostsToLedger(shipment);
+      } catch (syncError) {
+        console.error("Error syncing shipment costs to ledger:", syncError);
+        return res.status(500).json({ message: "Shipment created but failed to sync costs to ledger" });
+      }
+      
       res.status(201).json(shipment);
     } catch (error: any) {
       console.error("Error creating shipment:", error);
@@ -284,6 +294,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const updates = req.body;
       const shipment = await storage.updateShipment(req.params.id, updates);
+      
+      // Sync shipment costs to ledger
+      try {
+        const { syncShipmentCostsToLedger } = await import('./services/costSync');
+        await syncShipmentCostsToLedger(shipment);
+      } catch (syncError) {
+        console.error("Error syncing shipment costs to ledger:", syncError);
+        return res.status(500).json({ message: "Shipment updated but failed to sync costs to ledger" });
+      }
+      
       res.json(shipment);
     } catch (error: any) {
       console.error("Error updating shipment:", error);

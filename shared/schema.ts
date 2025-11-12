@@ -254,9 +254,14 @@ export const costs = pgTable("costs", {
   vehicleId: varchar("vehicle_id").references(() => vehicles.id, { onDelete: 'cascade' }),
   receiptUrl: text("receipt_url"),
   notes: text("notes"),
+  source: varchar("source", { length: 50 }).notNull().default('manual'),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("uniq_auto_shipment_cost")
+    .on(table.shipmentId, table.category, table.source)
+    .where(sql`${table.source} = 'auto_shipment' AND ${table.shipmentId} IS NOT NULL`),
+]);
 
 export const costsRelations = relations(costs, ({ one }) => ({
   shipment: one(shipments, {
