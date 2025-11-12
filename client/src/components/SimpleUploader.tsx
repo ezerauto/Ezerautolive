@@ -42,8 +42,11 @@ export function SimpleUploader({
         }
 
         // Get upload URL from server
-        const response = await apiRequest("POST", "/api/objects/upload");
-        const { uploadURL } = await response.json() as { uploadURL: string };
+        const response = await apiRequest("POST", "/api/objects/upload", {
+          directory,
+          contentType: file.type,
+        });
+        const { uploadURL, publicURL } = await response.json() as { uploadURL: string; publicURL: string };
 
         // Upload file to object storage
         await fetch(uploadURL, {
@@ -54,12 +57,9 @@ export function SimpleUploader({
           },
         });
 
-        // Extract the file path from the upload URL
-        const url = new URL(uploadURL);
-        const filePath = url.pathname;
-        
+        // Use the public URL returned from the server
         setUploadedFiles(prev => [...prev, file.name]);
-        onUploadComplete?.(filePath);
+        onUploadComplete?.(publicURL || uploadURL);
       }
     } catch (err: any) {
       setError(err.message || "Upload failed");
