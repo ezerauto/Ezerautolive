@@ -499,6 +499,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Projected sales and profits analytics endpoint
+  app.get('/api/analytics/projections', isAuthenticated, async (req, res) => {
+    try {
+      const allVehicles = await storage.listVehicles();
+      const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold' && v.targetSalePrice && Number(v.targetSalePrice) > 0);
+      const soldVehicles = allVehicles.filter(v => v.status === 'sold');
+      
+      const currentInventoryValue = allVehicles.filter(v => v.status !== 'sold').reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
+      const actualizedRevenue = soldVehicles.reduce((sum, v) => sum + Number(v.actualSalePrice || 0), 0);
+      
+      const projections = unsoldVehicles.map(v => {
+        const targetSalePrice = Number(v.targetSalePrice || 0);
+        const purchasePrice = Number(v.purchasePrice || 0);
+        const minimumPrice = v.minimumPrice && Number(v.minimumPrice) > 0 
+          ? Number(v.minimumPrice) 
+          : targetSalePrice;
+        
+        const targetProfit = targetSalePrice - purchasePrice;
+        const minimumProfit = minimumPrice - purchasePrice;
+        
+        const { dominickShare: targetDominickShare, tonyShare: targetTonyShare } = 
+          calculateProfitDistribution(targetProfit, currentInventoryValue);
+        
+        const { dominickShare: minDominickShare, tonyShare: minTonyShare} = 
+          calculateProfitDistribution(minimumProfit, currentInventoryValue);
+        
+        return {
+          vehicleId: v.id,
+          vehicleName: `${v.year} ${v.make} ${v.model}`,
+          vin: v.vin,
+          status: v.status,
+          purchasePrice,
+          targetSalePrice,
+          minimumPrice,
+          projectedRevenue: {
+            target: targetSalePrice,
+            minimum: minimumPrice,
+          },
+          projectedProfit: {
+            target: targetProfit,
+            minimum: minimumProfit,
+          },
+          projectedDistribution: {
+            target: {
+              dominick: targetDominickShare,
+              tony: targetTonyShare,
+            },
+            minimum: {
+              dominick: minDominickShare,
+              tony: minTonyShare,
+            },
+          },
+        };
+      });
+      
+      const allUnsoldVehicles = allVehicles.filter(v => v.status !== 'sold');
+      
+      const totals = {
+        totalInvestment: unsoldVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0),
+        projectedRevenue: {
+          target: projections.reduce((sum, p) => sum + p.projectedRevenue.target, 0),
+          minimum: projections.reduce((sum, p) => sum + p.projectedRevenue.minimum, 0),
+        },
+        projectedProfit: {
+          target: projections.reduce((sum, p) => sum + p.projectedProfit.target, 0),
+          minimum: projections.reduce((sum, p) => sum + p.projectedProfit.minimum, 0),
+        },
+        projectedDistribution: {
+          target: {
+            dominick: projections.reduce((sum, p) => sum + p.projectedDistribution.target.dominick, 0),
+            tony: projections.reduce((sum, p) => sum + p.projectedDistribution.target.tony, 0),
+          },
+          minimum: {
+            dominick: projections.reduce((sum, p) => sum + p.projectedDistribution.minimum.dominick, 0),
+            tony: projections.reduce((sum, p) => sum + p.projectedDistribution.minimum.tony, 0),
+          },
+        },
+        currentInventoryValue,
+        actualizedRevenue,
+        vehiclesInStock: allUnsoldVehicles.filter(v => v.status === 'in_stock').length,
+        vehiclesInTransit: allUnsoldVehicles.filter(v => v.status === 'in_transit').length,
+        vehiclesSold: soldVehicles.length,
+        totalVehicles: allVehicles.length,
+        vehiclesWithProjections: unsoldVehicles.length,
+      };
+      
+      res.json({
+        projections,
+        totals,
+      });
+    } catch (error) {
+      console.error("Error calculating projections:", error);
+      res.status(500).json({ message: "Failed to calculate projections" });
+    }
+  });
+
   // Object storage routes
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     const filePath = req.params.filePath;

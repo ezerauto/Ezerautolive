@@ -12,7 +12,9 @@ import {
   Archive,
   CheckCircle,
   Clock,
+  TrendingDown,
 } from "lucide-react";
+import { ProjectedSalesWidget } from "@/components/ProjectedSalesWidget";
 import {
   BarChart,
   Bar,
@@ -159,6 +161,8 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      <ProjectedSalesWidget />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <Card className="hover-elevate" data-testid="card-vehicles-transit">
