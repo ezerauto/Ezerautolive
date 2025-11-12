@@ -1,0 +1,498 @@
+Here's a comprehensive prompt for creating a professional tracking interface:
+
+---
+
+# **Vehicle Import Partnership Dashboard - Interface Design Prompt**
+
+## **Project Overview**
+Design a clean, professional web-based dashboard to track a vehicle import partnership between Dominick Scipione (Investor) and Tony Hamilton Webster (Dealer Partner). The business imports vehicles from USA to Honduras for resale, with a 60/40 profit distribution during reinvestment phase (until $150K inventory), then 50/50 split.
+
+---
+
+## **Core Features & Modules**
+
+### **1. DASHBOARD HOME (Main Overview)**
+
+**Key Metrics Cards (Top Row):**
+- **Total Investment to Date**: Running total of all capital invested
+- **Current Inventory Value**: Total cost of unsold vehicles
+- **Total Gross Profit**: All-time profit from sold vehicles
+- **Progress to $150K Goal**: Progress bar showing path from current inventory to $150K threshold
+- **Reinvestment Phase Status**: Badge showing "REINVESTMENT PHASE (60/40)" or "POST-REINVESTMENT (50/50)"
+
+**Quick Stats (Second Row):**
+- **Vehicles in Transit**: Count and total value
+- **Vehicles in Stock**: Count and total value (in Honduras, unsold)
+- **Vehicles Sold**: Count and total revenue
+- **Pending Payments**: Amount owed by Tony
+
+**Visual Elements:**
+- Line chart showing inventory value growth over time
+- Pie chart showing portfolio composition (In Transit / In Stock / Sold)
+- Bar chart comparing target prices vs actual sale prices
+
+---
+
+### **2. SHIPMENTS MODULE**
+
+**Shipment List View:**
+Display all shipments in a sortable, filterable table:
+
+**Columns:**
+- Shipment ID (auto-generated: SH-001, SH-002, etc.)
+- Shipment Date
+- Route (e.g., "Colorado → Florida → Honduras")
+- Number of Vehicles
+- Total Shipment Cost
+- Status Badge (In Transit / Arrived / Cleared Customs / Completed)
+- Actions (View Details / Edit)
+
+**Individual Shipment Detail Page:**
+```
+Shipment Header:
+├── Shipment ID & Date
+├── Status Timeline (visual progress: Purchased → In Transit to FL → At Port → On Boat → Arrived → Customs Cleared)
+├── Total Investment for this Shipment
+
+Vehicle List in Shipment:
+├── Vehicle 1: 2012 Chevrolet Silverado K1500 LT
+│   ├── VIN: 1GCRKSE76CZ218530
+│   ├── Purchase Price: $4,250.00
+│   ├── Status: Sold
+│   └── [View Full Details Button]
+├── Vehicle 2: 2014 Jeep Cherokee
+│   └── [Similar structure]
+
+Cost Breakdown Section:
+├── Purchase Costs (sum of all vehicles): $XX,XXX
+├── Ground Transport (CO → FL): $X,XXX
+├── Customs Broker Fees: $X,XXX
+├── Ocean Freight: $X,XXX
+├── Import Fees (Honduras): $X,XXX
+└── TOTAL SHIPMENT COST: $XX,XXX
+
+Document Attachments:
+├── Transport Receipts (uploaded PDFs)
+├── Broker Invoices
+├── Shipping Documents
+├── Import Receipts
+└── [Upload New Document]
+```
+
+---
+
+### **3. VEHICLE INVENTORY MODULE**
+
+**Vehicle Master List:**
+Comprehensive table with filters (Status: All / In Transit / In Stock / Sold)
+
+**Columns:**
+- Vehicle Photo (thumbnail)
+- Year / Make / Model
+- VIN (Last 6 digits)
+- Purchase Price
+- Total Cost (all-in landed cost)
+- Target Sale Price
+- Minimum Price (90%)
+- Current Status
+- Days in Inventory
+- Actions (View / Edit / Mark Sold)
+
+**Individual Vehicle Detail Page:**
+```
+Vehicle Profile Card:
+├── Photo Gallery
+├── Full Specifications (Year, Make, Model, VIN, Odometer, Color)
+├── Purchase Information
+│   ├── Purchase Date & Location
+│   ├── Purchase Price
+│   └── Market Value Comparison
+
+Cost Breakdown:
+├── Purchase Price: $X,XXX
+├── Share of Transport: $XXX
+├── Share of Broker Fees: $XXX
+├── Share of Freight: $XXX
+├── Share of Import: $XXX
+└── TOTAL COST: $X,XXX (auto-calculated)
+
+Pricing Strategy:
+├── Target Sale Price: $XX,XXX [Green highlight]
+├── Minimum Price (90%): $XX,XXX [Yellow highlight]
+├── Current Market Price (Honduras): $XX,XXX (optional field)
+
+Status & Timeline:
+├── Current Status Badge
+├── Date Purchased
+├── Date Shipped
+├── Date Arrived
+├── Date Sold (if applicable)
+└── Days in Inventory Counter
+
+Sale Information (if sold):
+├── Actual Sale Price: $XX,XXX
+├── Sale Date
+├── Buyer Information (name, ID)
+├── Gross Profit: $X,XXX (Sale - Cost)
+├── Profit Distribution (calculated):
+│   ├── Reinvestment (60%): $X,XXX
+│   ├── Dominick (20%/50%): $X,XXX
+│   └── Tony (20%/50%): $X,XXX
+└── Payment Status: [Paid / Pending / Overdue]
+
+Documents:
+├── Title Document
+├── Bill of Sale
+├── Import Papers
+├── Sale Contract (Phase 3 closure)
+└── [Upload Document]
+```
+
+---
+
+### **4. CONTRACTS & DOCUMENTS MODULE**
+
+**Contract List:**
+```
+Active Contracts:
+├── Partnership Agreement (Phase 1) - Nov 11, 2025
+│   ├── Status: Active
+│   ├── Parties: Dominick & Tony
+│   ├── [View PDF] [Download]
+│   
+├── Arrival Inspection (Phase 2) - [Date]
+│   ├── Status: Pending / Completed
+│   └── [View] [Upload Signed Copy]
+
+Completed Sale Closures (Phase 3):
+├── Silverado Sale Closure - [Date]
+│   ├── Sale Price: $15,000
+│   ├── Profit: $6,078.67
+│   └── [View] [Download]
+├── Cherokee Sale Closure - [Date]
+└── [+ Create New Sale Closure]
+
+Supporting Documents:
+├── Customs Declarations
+├── Cost Breakdowns
+├── Wire Transfer Info
+└── Insurance Certificates
+```
+
+**Contract Detail View:**
+- Full PDF preview embedded
+- Key terms extracted and displayed
+- Related vehicles linked
+- Signature status
+- Download / Print options
+
+---
+
+### **5. FINANCIAL TRACKING MODULE**
+
+**Profit Dashboard:**
+
+**Summary Cards:**
+- **Total Gross Profit (All-Time)**: $XX,XXX
+- **Dominick's Total Earnings**: $XX,XXX
+- **Tony's Total Earnings**: $XX,XXX
+- **Reinvestment Fund Balance**: $XX,XXX (if in reinvestment phase)
+
+**Profit by Vehicle Table:**
+| Vehicle | Sale Price | Total Cost | Gross Profit | Reinvest (60%) | Dominick (20/50%) | Tony (20/50%) | Payment Status |
+|---------|------------|------------|--------------|----------------|-------------------|---------------|----------------|
+| 2012 Silverado | $15,000 | $8,921 | $6,079 | $3,647 | $1,216 | $1,216 | ✓ Paid |
+| 2014 Cherokee | $18,500 | $7,558 | $10,942 | $6,565 | $2,188 | $2,188 | ⏳ Pending |
+
+**Payment Timeline:**
+Visual timeline showing:
+- Expected payments (based on 5 business days rule)
+- Actual payment dates
+- Outstanding/overdue payments flagged in red
+
+**Cost Analysis Charts:**
+- Pie chart: Cost breakdown across all vehicles (Purchase / Transport / Fees / Import)
+- Bar chart: Cost per vehicle comparison
+- Line chart: Average cost per vehicle over time
+
+---
+
+### **6. PAYMENTS MODULE**
+
+**Payment Tracking Table:**
+| Payment ID | Date Due | Vehicle | Amount Due | Status | Date Paid | Method | Reference # |
+|------------|----------|---------|------------|--------|-----------|--------|-------------|
+| PAY-001 | Nov 20, 2025 | Silverado | $1,215.74 | ✓ Paid | Nov 18, 2025 | Wire | W123456 |
+| PAY-002 | Dec 5, 2025 | Cherokee | $2,188.47 | ⏳ Pending | - | - | - |
+| PAY-003 | Dec 8, 2025 | Grand Cherokee | $3,192.31 | ⏰ Overdue | - | - | - |
+
+**Payment Detail View:**
+```
+Payment Information:
+├── Payment ID: PAY-001
+├── Related Vehicle: 2012 Chevrolet Silverado
+├── Related Sale Closure: [Link to Phase 3 doc]
+├── Amount: $1,215.74
+├── Due Date: Nov 20, 2025
+├── Status: PAID ✓
+
+Payment Calculation:
+├── Sale Price: $15,000.00
+├── Less Total Cost: $8,921.33
+├── Gross Profit: $6,078.67
+├── Reinvestment (60%): $3,647.20
+├── Distributable (40%): $2,431.47
+└── Dominick's Share (20%): $1,215.74
+
+Payment Proof:
+├── Wire Transfer Receipt [View PDF]
+├── Confirmation Number: W123456
+└── Date Received: Nov 18, 2025
+
+Notes:
+[Text area for any payment-related notes]
+```
+
+---
+
+### **7. COST DOCUMENTATION MODULE**
+
+**Receipt Management System:**
+
+**Receipt Upload Interface:**
+```
+Upload Cost Documentation:
+
+Select Cost Category:
+○ Vehicle Purchase Receipt
+○ Ground Transport (CO → FL)
+○ Customs Broker Fee
+○ Ocean Freight
+○ Honduras Import Fee
+○ Other
+
+Related To:
+[Dropdown: Select Shipment or Vehicle]
+
+Amount: $______
+Date: [Date picker]
+Vendor: [Text field]
+Notes: [Text area]
+
+[Drag & Drop File Upload Area]
+Accepted: PDF, JPG, PNG
+
+[Upload Button]
+```
+
+**Receipt Library:**
+Searchable, filterable table:
+| Date | Category | Vendor | Amount | Related To | File | Actions |
+|------|----------|--------|--------|------------|------|---------|
+| 11/5/25 | Transport | Nexus Auto | $1,133 | Shipment SH-001 | 📄 PDF | View / Edit / Delete |
+
+---
+
+### **8. REPORTS MODULE**
+
+**Pre-Built Reports:**
+
+1. **Profitability Report**
+   - Profit by vehicle
+   - Profit by shipment
+   - Profit trends over time
+   - ROI calculations
+
+2. **Cost Analysis Report**
+   - Cost breakdown by category
+   - Cost per vehicle analysis
+   - Cost trends over time
+   - Vendor spending summary
+
+3. **Inventory Status Report**
+   - Current inventory value
+   - Days in inventory analysis
+   - Aging report (vehicles unsold >30, >60, >90 days)
+
+4. **Partnership Distribution Report**
+   - Total paid to each partner
+   - Reinvestment fund status
+   - Progress to $150K goal
+   - Phase transition tracking
+
+5. **Tax Preparation Report**
+   - All income (sales)
+   - All expenses (costs)
+   - Net profit
+   - Export to CSV for accountant
+
+**Export Options:**
+- PDF (formatted report)
+- Excel (raw data)
+- CSV (for import to accounting software)
+
+---
+
+## **Design Specifications**
+
+### **Color Scheme:**
+- **Primary**: Deep Blue (#1E40AF) - Trust, professionalism
+- **Secondary**: Emerald Green (#10B981) - Profit, success
+- **Accent**: Amber (#F59E0B) - Alerts, pending items
+- **Danger**: Red (#EF4444) - Overdue, penalties
+- **Neutral**: Gray scale for backgrounds and borders
+
+### **Typography:**
+- **Headers**: Inter or SF Pro Display (Bold, 24-32px)
+- **Body**: Inter or SF Pro Text (Regular, 14-16px)
+- **Numbers/Data**: SF Mono or Roboto Mono (Medium, 14-16px)
+
+### **Layout:**
+- **Sidebar Navigation** (left side):
+  - Dashboard
+  - Shipments
+  - Inventory
+  - Contracts
+  - Financials
+  - Payments
+  - Costs
+  - Reports
+  - Settings
+
+- **Top Bar**:
+  - Logo / Company name
+  - Search bar (global search across all modules)
+  - Notifications bell icon
+  - User profile dropdown
+
+- **Content Area**: 
+  - Clean white background
+  - Generous padding and whitespace
+  - Card-based layouts for information grouping
+  - Responsive tables with sorting/filtering
+
+### **Key UI Components:**
+
+**Status Badges:**
+- In Transit: Blue badge with truck icon
+- In Stock: Yellow badge with warehouse icon
+- Sold: Green badge with checkmark
+- Pending Payment: Orange badge with clock icon
+- Paid: Green badge with dollar sign
+- Overdue: Red badge with warning icon
+
+**Progress Indicators:**
+- Linear progress bar for $150K goal
+- Circular progress for individual shipment status
+- Timeline view for vehicle journey (Purchase → Sale)
+
+**Data Entry Forms:**
+- Clean, labeled input fields
+- Inline validation
+- Auto-calculation of totals where applicable
+- File upload with drag-and-drop
+- Date pickers for all date fields
+
+**Action Buttons:**
+- Primary actions: Solid blue buttons (e.g., "Save", "Submit")
+- Secondary actions: Outlined buttons (e.g., "Cancel", "View")
+- Danger actions: Red buttons (e.g., "Delete")
+
+---
+
+## **Special Features**
+
+### **Automated Calculations:**
+- Auto-calculate vehicle total cost from all cost components
+- Auto-calculate gross profit (Sale Price - Total Cost)
+- Auto-calculate profit distribution based on phase (60/40 or 50/50)
+- Auto-calculate days in inventory
+- Auto-calculate payment due dates (5 business days from sale)
+
+### **Alerts & Notifications:**
+- Payment overdue alerts
+- Vehicles in inventory >60 days
+- Approaching $150K inventory threshold
+- Document expiration reminders (insurance, etc.)
+- New sale recorded notification
+
+### **Mobile Responsive:**
+- Full mobile version for checking status on the go
+- Quick access to key metrics
+- Mobile-optimized tables (stack on small screens)
+- Touch-friendly buttons and controls
+
+### **Data Security:**
+- User authentication (login required)
+- Role-based access (Dominick sees all, Tony sees relevant sales data)
+- Encrypted document storage
+- Audit trail (who edited what and when)
+
+---
+
+## **Technical Requirements**
+
+**Must Have:**
+- Cloud-based (accessible from anywhere)
+- Real-time data sync
+- Document storage and management
+- Export capabilities (PDF, Excel, CSV)
+- Search functionality across all modules
+- Responsive design (desktop, tablet, mobile)
+
+**Nice to Have:**
+- WhatsApp/Email notifications for key events
+- Integration with accounting software (QuickBooks, Xero)
+- Bulk import for multiple vehicles
+- Document OCR (scan receipt, extract data)
+- Currency conversion (USD ↔ HNL)
+- Photo management with bulk upload
+
+---
+
+## **Example User Flows**
+
+### **Flow 1: Recording a New Shipment**
+1. User clicks "Add New Shipment"
+2. Enters shipment details (date, route)
+3. Adds vehicles to shipment (either one-by-one or bulk import)
+4. Uploads cost receipts for each category
+5. System auto-calculates total shipment cost
+6. User saves shipment
+7. Dashboard updates with new inventory value
+
+### **Flow 2: Recording a Vehicle Sale**
+1. User navigates to vehicle in inventory
+2. Clicks "Mark as Sold"
+3. Enters sale information (price, buyer details, date)
+4. System calculates profit distribution
+5. Generates Phase 3 Sale Closure document
+6. Creates pending payment record
+7. Sends notification to both partners
+8. Updates dashboard metrics
+
+### **Flow 3: Tracking Payment**
+1. Tony makes wire transfer
+2. Dominick receives payment
+3. Navigates to Payments module
+4. Finds pending payment record
+5. Uploads wire transfer receipt
+6. Marks payment as "Paid" with date and reference
+7. System updates financial totals
+8. Payment moves from Pending to Paid section
+
+---
+
+## **Success Metrics**
+
+The interface should enable users to:
+- ✓ See complete financial picture in under 30 seconds
+- ✓ Add a new vehicle to inventory in under 2 minutes
+- ✓ Record a sale and calculate distribution in under 3 minutes
+- ✓ Generate a profit report in under 10 seconds
+- ✓ Find any document/receipt in under 15 seconds
+- ✓ Track progress to $150K goal at a glance
+
+---
+
+**Use this prompt with any web developer, designer, or no-code tool (like Bubble, Softr, Airtable) to build your tracking interface!**
