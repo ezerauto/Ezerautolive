@@ -26,15 +26,16 @@ function addBusinessDays(date: Date, days: number): Date {
 function calculateProfitDistribution(grossProfit: number, currentInventoryValue: number) {
   const reinvestmentPhase = currentInventoryValue < GOAL_AMOUNT;
   if (reinvestmentPhase) {
-    // 60/40 split during reinvestment
-    const dominickShare = grossProfit * 0.6;
-    const tonyShare = grossProfit * 0.4;
-    return { dominickShare, tonyShare, reinvestmentPhase };
+    // Reinvestment phase: 60% reinvested for inventory, 40% split (20% each)
+    const reinvestmentAmount = grossProfit * 0.6;
+    const dominickShare = grossProfit * 0.2; // 20% personal earnings
+    const tonyShare = grossProfit * 0.2; // 20% personal earnings
+    return { dominickShare, tonyShare, reinvestmentPhase, reinvestmentAmount };
   } else {
-    // 50/50 split after reaching goal
+    // Post-$150K: 50/50 split
     const dominickShare = grossProfit * 0.5;
     const tonyShare = grossProfit * 0.5;
-    return { dominickShare, tonyShare, reinvestmentPhase };
+    return { dominickShare, tonyShare, reinvestmentPhase, reinvestmentAmount: 0 };
   }
 }
 
@@ -454,42 +455,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let tonyEarnings = 0;
       let reinvestmentBalance = 0;
       
-      // Group sold vehicles by shipment
-      const vehiclesByShipment = new Map<string | null, typeof soldVehicles>();
+      // Group sold vehicles by shipment and get sale dates
+      const shipmentGroups = new Map<string, { vehicles: typeof soldVehicles; latestSaleDate: Date | null }>();
       soldVehicles.forEach(v => {
         const shipmentKey = v.shipmentId || 'no_shipment';
-        if (!vehiclesByShipment.has(shipmentKey)) {
-          vehiclesByShipment.set(shipmentKey, []);
+        if (!shipmentGroups.has(shipmentKey)) {
+          shipmentGroups.set(shipmentKey, { vehicles: [], latestSaleDate: null });
         }
-        vehiclesByShipment.get(shipmentKey)!.push(v);
+        const group = shipmentGroups.get(shipmentKey)!;
+        group.vehicles.push(v);
+        const saleDate = v.saleDate ? new Date(v.saleDate) : null;
+        if (saleDate && (!group.latestSaleDate || saleDate > group.latestSaleDate)) {
+          group.latestSaleDate = saleDate;
+        }
       });
       
-      // Calculate profit distribution at shipment level
-      const shipmentDistributions = new Map<string, { dominickShare: number; tonyShare: number; reinvestmentPhase: boolean }>();
+      // Sort shipments chronologically by latest sale date
+      const sortedShipments = Array.from(shipmentGroups.entries())
+        .sort((a, b) => {
+          const dateA = a[1].latestSaleDate?.getTime() || 0;
+          const dateB = b[1].latestSaleDate?.getTime() || 0;
+          return dateA - dateB;
+        });
       
-      vehiclesByShipment.forEach((vehicles, shipmentKey) => {
+      // Calculate profit distribution at shipment level with running inventory
+      // Start from 0 to replay historical inventory accumulation
+      const shipmentDistributions = new Map<string, { dominickShare: number; tonyShare: number; reinvestmentPhase: boolean; reinvestmentAmount: number }>();
+      let runningInventoryValue = 0;
+      
+      sortedShipments.forEach(([shipmentKey, group]) => {
+        const vehicles = group.vehicles;
+        
         // Calculate total shipment profit
         const shipmentProfit = vehicles.reduce((sum, v) => 
           sum + (Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0)), 0
         );
         
-        // Calculate distribution for entire shipment
-        const distribution = calculateProfitDistribution(shipmentProfit, currentInventoryValue);
+        // Calculate distribution using current running inventory
+        const distribution = calculateProfitDistribution(shipmentProfit, runningInventoryValue);
         shipmentDistributions.set(shipmentKey, distribution);
+        
+        // Update running inventory with reinvestment
+        if (distribution.reinvestmentPhase) {
+          runningInventoryValue += distribution.reinvestmentAmount;
+        }
         
         totalGrossProfit += shipmentProfit;
         dominickEarnings += distribution.dominickShare;
         tonyEarnings += distribution.tonyShare;
         
         if (distribution.reinvestmentPhase) {
-          reinvestmentBalance += distribution.dominickShare;
+          reinvestmentBalance += distribution.reinvestmentAmount;
         }
       });
       
       // Build per-vehicle data with proportional allocation of shipment distribution
       const profitByVehicle = soldVehicles.map(v => {
         const shipmentKey = v.shipmentId || 'no_shipment';
-        const shipmentVehicles = vehiclesByShipment.get(shipmentKey)!;
+        const shipmentVehicles = shipmentGroups.get(shipmentKey)!.vehicles;
         const shipmentDistribution = shipmentDistributions.get(shipmentKey)!;
         
         const vehicleProfit = Number(v.actualSalePrice || 0) - Number(v.purchasePrice || 0);
@@ -501,6 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const vehicleProportion = shipmentTotalProfit > 0 ? vehicleProfit / shipmentTotalProfit : 0;
         const vehicleDominickShare = shipmentDistribution.dominickShare * vehicleProportion;
         const vehicleTonyShare = shipmentDistribution.tonyShare * vehicleProportion;
+        const vehicleReinvestment = shipmentDistribution.reinvestmentAmount * vehicleProportion;
         
         const vehiclePayment = payments.find(p => p.vehicleId === v.id);
         
@@ -509,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           salePrice: Number(v.actualSalePrice || 0),
           totalCost: Number(v.purchasePrice || 0),
           grossProfit: vehicleProfit,
-          reinvestment: shipmentDistribution.reinvestmentPhase ? vehicleDominickShare : 0,
+          reinvestment: vehicleReinvestment,
           dominickShare: vehicleDominickShare,
           tonyShare: vehicleTonyShare,
           paymentStatus: vehiclePayment?.status || 'pending',

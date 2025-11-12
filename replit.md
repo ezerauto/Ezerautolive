@@ -4,7 +4,7 @@
 
 This is a professional web-based dashboard for tracking a vehicle import partnership between an investor and a dealer partner. The system manages the complete lifecycle of importing vehicles from the USA to Honduras, including shipments, inventory tracking, financial transactions, profit distribution, and contract management.
 
-The application tracks a profit-sharing arrangement that shifts from a 60/40 split (during reinvestment phase) to a 50/50 split once inventory value reaches $150,000. It provides comprehensive visibility into vehicle costs, sale prices, payments, and profit distribution between partners.
+The application tracks a profit-sharing arrangement calculated at the shipment level. During the reinvestment phase (until $150K inventory), 60% of profit is reinvested for inventory, with the remaining 40% split equally (20% each to Dominick and Tony). After reaching $150K inventory, profits are split 50/50. This provides comprehensive visibility into vehicle costs, sale prices, payments, and profit distribution between partners.
 
 ## User Preferences
 

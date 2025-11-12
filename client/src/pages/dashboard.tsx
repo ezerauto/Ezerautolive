@@ -137,9 +137,9 @@ export default function Dashboard() {
               className="text-xs uppercase mb-2"
               data-testid="badge-phase-status"
             >
-              {metrics?.reinvestmentPhase ? "Reinvestment (60/40)" : "Post-Reinvestment (50/50)"}
+              {metrics?.reinvestmentPhase ? "Reinvestment (60% + 20/20)" : "Post-$150K (50/50)"}
             </Badge>
-            <p className="text-xs text-muted-foreground">Current profit split</p>
+            <p className="text-xs text-muted-foreground">{metrics?.reinvestmentPhase ? "60% reinvested, 40% split" : "Profits split evenly"}</p>
           </CardContent>
         </Card>
       </div>
