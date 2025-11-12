@@ -1,13 +1,12 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Truck, Package, CheckCircle2, Ship, Car, ExternalLink, FileText } from "lucide-react";
-import { SimpleUploader } from "@/components/SimpleUploader";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ArrowLeft, Truck, Package, CheckCircle2, Ship, Car, ExternalLink } from "lucide-react";
+import { ShipmentContracts } from "@/components/ShipmentContracts";
 import type { Shipment, Vehicle } from "@shared/schema";
 
 const statusConfig = {
@@ -25,19 +24,6 @@ export default function ShipmentDetail() {
   
   const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
-  });
-
-  const addDocumentMutation = useMutation({
-    mutationFn: async (documentUrl: string) => {
-      const currentDocs = shipment?.documentUrls || [];
-      return apiRequest(`/api/shipments/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ documentUrls: [...currentDocs, documentUrl] }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shipments", id] });
-    },
   });
 
   if (isLoading) {
@@ -188,36 +174,7 @@ export default function ShipmentDetail() {
 
             <Separator />
 
-            <div>
-              <h3 className="font-semibold mb-4">Shipment Documents</h3>
-              
-              {shipment?.documentUrls && shipment.documentUrls.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {shipment.documentUrls.map((url, idx) => (
-                    <a
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-3 rounded-lg border hover-elevate active-elevate-2"
-                    >
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium flex-1">Document {idx + 1}</span>
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                    </a>
-                  ))}
-                </div>
-              )}
-              
-              <SimpleUploader
-                directory={`shipments/${id}`}
-                onUploadComplete={(url) => {
-                  addDocumentMutation.mutate(url);
-                }}
-                allowedMimeTypes={["application/pdf", "image/jpeg", "image/png"]}
-                maxFileSizeMB={10}
-              />
-            </div>
+            <ShipmentContracts shipmentId={id!} />
           </CardContent>
         </Card>
 
