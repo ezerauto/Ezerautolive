@@ -285,6 +285,77 @@ export const insertCostSchema = createInsertSchema(costs).omit({
 export type InsertCost = z.infer<typeof insertCostSchema>;
 export type Cost = typeof costs.$inferSelect;
 
+// Profit Distributions table (parent - one per sale)
+export const profitDistributions = pgTable("profit_distributions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  distributionNumber: varchar("distribution_number").notNull().unique(),
+  vehicleId: varchar("vehicle_id").references(() => vehicles.id, { onDelete: 'cascade' }).notNull(),
+  grossProfit: decimal("gross_profit", { precision: 10, scale: 2 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).notNull(),
+  salePrice: decimal("sale_price", { precision: 10, scale: 2 }).notNull(),
+  reinvestmentAmount: decimal("reinvestment_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  reinvestmentPhase: boolean("reinvestment_phase").notNull(),
+  cumulativeReinvestment: decimal("cumulative_reinvestment", { precision: 10, scale: 2 }).notNull(),
+  saleDate: timestamp("sale_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const profitDistributionsRelations = relations(profitDistributions, ({ one, many }) => ({
+  vehicle: one(vehicles, {
+    fields: [profitDistributions.vehicleId],
+    references: [vehicles.id],
+  }),
+  entries: many(profitDistributionEntries),
+}));
+
+export const insertProfitDistributionSchema = createInsertSchema(profitDistributions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  saleDate: z.coerce.date(),
+});
+
+export type InsertProfitDistribution = z.infer<typeof insertProfitDistributionSchema>;
+export type ProfitDistribution = typeof profitDistributions.$inferSelect;
+
+// Profit Distribution Entries table (child - partners' shares)
+export const profitDistributionEntries = pgTable("profit_distribution_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  distributionId: varchar("distribution_id").references(() => profitDistributions.id, { onDelete: 'cascade' }).notNull(),
+  partner: varchar("partner", { length: 50 }).notNull(), // 'dominick' or 'tony'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default('pending'), // 'pending' or 'closed'
+  closedDate: timestamp("closed_date"),
+  paymentId: varchar("payment_id").references(() => payments.id, { onDelete: 'set null' }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const profitDistributionEntriesRelations = relations(profitDistributionEntries, ({ one }) => ({
+  distribution: one(profitDistributions, {
+    fields: [profitDistributionEntries.distributionId],
+    references: [profitDistributions.id],
+  }),
+  payment: one(payments, {
+    fields: [profitDistributionEntries.paymentId],
+    references: [payments.id],
+  }),
+}));
+
+export const insertProfitDistributionEntrySchema = createInsertSchema(profitDistributionEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  closedDate: z.coerce.date().optional().nullable(),
+});
+
+export type InsertProfitDistributionEntry = z.infer<typeof insertProfitDistributionEntrySchema>;
+export type ProfitDistributionEntry = typeof profitDistributionEntries.$inferSelect;
+
 // Contract Templates table
 export const contractTemplates = pgTable("contract_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

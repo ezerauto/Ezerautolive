@@ -9,6 +9,8 @@ import {
   contractWorkflows,
   workflowPhases,
   phaseDocuments,
+  profitDistributions,
+  profitDistributionEntries,
   type User,
   type UpsertUser,
   type Vehicle,
@@ -29,6 +31,10 @@ import {
   type InsertWorkflowPhase,
   type PhaseDocument,
   type InsertPhaseDocument,
+  type ProfitDistribution,
+  type InsertProfitDistribution,
+  type ProfitDistributionEntry,
+  type InsertProfitDistributionEntry,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -91,6 +97,16 @@ export interface IStorage {
   getWorkflowPhase(id: string): Promise<WorkflowPhase | undefined>;
   listWorkflowPhases(workflowId: string): Promise<WorkflowPhase[]>;
   updateWorkflowPhase(id: string, updates: Partial<InsertWorkflowPhase>): Promise<WorkflowPhase>;
+  
+  // Profit distribution operations
+  createProfitDistribution(distribution: InsertProfitDistribution): Promise<ProfitDistribution>;
+  getProfitDistributionByVehicle(vehicleId: string): Promise<ProfitDistribution | undefined>;
+  listProfitDistributions(): Promise<ProfitDistribution[]>;
+  
+  // Profit distribution entry operations
+  createProfitDistributionEntry(entry: InsertProfitDistributionEntry): Promise<ProfitDistributionEntry>;
+  listProfitDistributionEntries(filters?: { distributionId?: string; partner?: string; status?: string }): Promise<ProfitDistributionEntry[]>;
+  updateProfitDistributionEntry(id: string, updates: Partial<InsertProfitDistributionEntry>): Promise<ProfitDistributionEntry>;
   
   // Phase document operations
   createPhaseDocument(document: InsertPhaseDocument): Promise<PhaseDocument>;
@@ -422,6 +438,76 @@ export class DatabaseStorage implements IStorage {
       .where(eq(phaseDocuments.id, id))
       .returning();
     return document;
+  }
+
+  // Profit distribution operations
+  async createProfitDistribution(distributionData: InsertProfitDistribution): Promise<ProfitDistribution> {
+    const [distribution] = await db.insert(profitDistributions).values(distributionData).returning();
+    return distribution;
+  }
+
+  async getProfitDistributionByVehicle(vehicleId: string): Promise<ProfitDistribution | undefined> {
+    const [distribution] = await db
+      .select()
+      .from(profitDistributions)
+      .where(eq(profitDistributions.vehicleId, vehicleId));
+    return distribution;
+  }
+
+  async listProfitDistributions(): Promise<ProfitDistribution[]> {
+    return db.select().from(profitDistributions).orderBy(desc(profitDistributions.saleDate));
+  }
+
+  // Profit distribution entry operations
+  async createProfitDistributionEntry(entryData: InsertProfitDistributionEntry): Promise<ProfitDistributionEntry> {
+    const [entry] = await db.insert(profitDistributionEntries).values(entryData).returning();
+    return entry;
+  }
+
+  async listProfitDistributionEntries(filters?: { distributionId?: string; partner?: string; status?: string }): Promise<ProfitDistributionEntry[]> {
+    if (filters?.distributionId && filters?.status) {
+      return db
+        .select()
+        .from(profitDistributionEntries)
+        .where(
+          and(
+            eq(profitDistributionEntries.distributionId, filters.distributionId),
+            eq(profitDistributionEntries.status, filters.status)
+          )
+        )
+        .orderBy(desc(profitDistributionEntries.createdAt));
+    }
+    if (filters?.distributionId) {
+      return db
+        .select()
+        .from(profitDistributionEntries)
+        .where(eq(profitDistributionEntries.distributionId, filters.distributionId))
+        .orderBy(desc(profitDistributionEntries.createdAt));
+    }
+    if (filters?.partner) {
+      return db
+        .select()
+        .from(profitDistributionEntries)
+        .where(eq(profitDistributionEntries.partner, filters.partner))
+        .orderBy(desc(profitDistributionEntries.createdAt));
+    }
+    if (filters?.status) {
+      return db
+        .select()
+        .from(profitDistributionEntries)
+        .where(eq(profitDistributionEntries.status, filters.status))
+        .orderBy(desc(profitDistributionEntries.createdAt));
+    }
+    return db.select().from(profitDistributionEntries).orderBy(desc(profitDistributionEntries.createdAt));
+  }
+
+  async updateProfitDistributionEntry(id: string, updates: Partial<InsertProfitDistributionEntry>): Promise<ProfitDistributionEntry> {
+    const [entry] = await db
+      .update(profitDistributionEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(profitDistributionEntries.id, id))
+      .returning();
+    return entry;
   }
 }
 
