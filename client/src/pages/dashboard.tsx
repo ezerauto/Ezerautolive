@@ -15,6 +15,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { ProjectedSalesWidget } from "@/components/ProjectedSalesWidget";
+import { formatDualCurrency } from "@/lib/currency";
 import {
   BarChart,
   Bar,
@@ -94,8 +95,11 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-mono" data-testid="text-total-investment">
-              ${metrics?.totalInvestment.toLocaleString() || '0'}
+              {formatDualCurrency(metrics?.totalInvestment || 0).usd}
             </div>
+            <p className="text-sm font-mono text-muted-foreground">
+              {formatDualCurrency(metrics?.totalInvestment || 0).hnl}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">All-time capital invested</p>
           </CardContent>
         </Card>
@@ -107,8 +111,11 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-mono" data-testid="text-inventory-value">
-              ${metrics?.currentInventoryValue.toLocaleString() || '0'}
+              {formatDualCurrency(metrics?.currentInventoryValue || 0).usd}
             </div>
+            <p className="text-sm font-mono text-muted-foreground">
+              {formatDualCurrency(metrics?.currentInventoryValue || 0).hnl}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">Unsold vehicles cost</p>
           </CardContent>
         </Card>
@@ -120,8 +127,11 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-mono text-success" data-testid="text-gross-profit">
-              ${metrics?.totalGrossProfit.toLocaleString() || '0'}
+              {formatDualCurrency(metrics?.totalGrossProfit || 0).usd}
             </div>
+            <p className="text-sm font-mono text-muted-foreground">
+              {formatDualCurrency(metrics?.totalGrossProfit || 0).hnl}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">All-time profit from sales</p>
           </CardContent>
         </Card>
@@ -146,13 +156,25 @@ export default function Dashboard() {
 
       <Card className="mb-8" data-testid="card-goal-progress">
         <CardHeader>
-          <CardTitle>Progress to $150K Inventory Goal</CardTitle>
+          <CardTitle>Progress to $150K / L 3.9M Inventory Goal</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Current: <span className="font-mono font-semibold text-foreground">${metrics?.progressTo150K.toLocaleString() || '0'}</span></span>
-              <span className="text-muted-foreground">Goal: <span className="font-mono font-semibold text-foreground">$150,000</span></span>
+            <div className="flex justify-between text-sm gap-4">
+              <div>
+                <span className="text-muted-foreground">Current: </span>
+                <span className="font-mono font-semibold text-foreground block">
+                  {formatDualCurrency(metrics?.progressTo150K || 0).usd}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {formatDualCurrency(metrics?.progressTo150K || 0).hnl}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-muted-foreground">Goal: </span>
+                <span className="font-mono font-semibold text-foreground block">$150,000</span>
+                <span className="font-mono text-xs text-muted-foreground">L 3,944,700</span>
+              </div>
             </div>
             <Progress value={progress} className="h-3" data-testid="progress-150k-goal" />
             <p className="text-sm text-muted-foreground">
@@ -172,7 +194,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-transit-count">{metrics?.vehiclesInTransit.count || 0}</div>
-            <p className="text-xs text-muted-foreground font-mono">${metrics?.vehiclesInTransit.value.toLocaleString() || '0'}</p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesInTransit.value || 0).usd}
+            </p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesInTransit.value || 0).hnl}
+            </p>
           </CardContent>
         </Card>
 
@@ -183,7 +210,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-stock-count">{metrics?.vehiclesInStock.count || 0}</div>
-            <p className="text-xs text-muted-foreground font-mono">${metrics?.vehiclesInStock.value.toLocaleString() || '0'}</p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesInStock.value || 0).usd}
+            </p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesInStock.value || 0).hnl}
+            </p>
           </CardContent>
         </Card>
 
@@ -194,7 +226,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-sold-count">{metrics?.vehiclesSold.count || 0}</div>
-            <p className="text-xs text-muted-foreground font-mono">${metrics?.vehiclesSold.revenue.toLocaleString() || '0'}</p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesSold.revenue || 0).usd}
+            </p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(metrics?.vehiclesSold.revenue || 0).hnl}
+            </p>
           </CardContent>
         </Card>
 
@@ -205,8 +242,11 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-destructive" data-testid="text-pending-amount">
-              ${metrics?.pendingPayments.toLocaleString() || '0'}
+              {formatDualCurrency(metrics?.pendingPayments || 0).usd}
             </div>
+            <p className="text-sm font-mono text-muted-foreground">
+              {formatDualCurrency(metrics?.pendingPayments || 0).hnl}
+            </p>
             <p className="text-xs text-muted-foreground">Awaiting payment</p>
           </CardContent>
         </Card>

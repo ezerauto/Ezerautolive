@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { TrendingUp, DollarSign, Target, TrendingDown } from "lucide-react";
+import { formatDualCurrency } from "@/lib/currency";
 
 type ProjectionData = {
   projections: Array<{
@@ -122,9 +123,11 @@ export function ProjectedSalesWidget() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="text-2xl font-bold font-mono" data-testid="text-projected-investment">
-              ${totals.totalInvestment.toLocaleString()}
+              {formatDualCurrency(totals.totalInvestment).usd}
             </div>
-            <p className="text-xs text-muted-foreground">Current inventory cost</p>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(totals.totalInvestment).hnl}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -133,10 +136,13 @@ export function ProjectedSalesWidget() {
               <Target className="h-4 w-4 text-success" />
             </div>
             <div className="text-2xl font-bold font-mono text-success" data-testid="text-projected-revenue-target">
-              ${totals.projectedRevenue.target.toLocaleString()}
+              {formatDualCurrency(totals.projectedRevenue.target).usd}
             </div>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(totals.projectedRevenue.target).hnl}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Min: ${totals.projectedRevenue.minimum.toLocaleString()}
+              Min: {formatDualCurrency(totals.projectedRevenue.minimum).usd} / {formatDualCurrency(totals.projectedRevenue.minimum).hnl}
             </p>
           </div>
 
@@ -146,10 +152,13 @@ export function ProjectedSalesWidget() {
               <TrendingUp className="h-4 w-4 text-success" />
             </div>
             <div className="text-2xl font-bold font-mono text-success" data-testid="text-projected-profit-target">
-              ${totals.projectedProfit.target.toLocaleString()}
+              {formatDualCurrency(totals.projectedProfit.target).usd}
             </div>
+            <p className="text-xs text-muted-foreground font-mono">
+              {formatDualCurrency(totals.projectedProfit.target).hnl}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Min: ${totals.projectedProfit.minimum.toLocaleString()}
+              Min: {formatDualCurrency(totals.projectedProfit.minimum).usd} / {formatDualCurrency(totals.projectedProfit.minimum).hnl}
             </p>
           </div>
 
@@ -179,24 +188,34 @@ export function ProjectedSalesWidget() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Dominick (Investor)</span>
-                <Badge variant="secondary" className="font-mono" data-testid="badge-dominick-projected">
-                  ${totals.projectedDistribution.target.dominick.toLocaleString()}
-                </Badge>
+                <div>
+                  <Badge variant="secondary" className="font-mono" data-testid="badge-dominick-projected">
+                    {formatDualCurrency(totals.projectedDistribution.target.dominick).usd}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground font-mono text-right mt-1">
+                    {formatDualCurrency(totals.projectedDistribution.target.dominick).hnl}
+                  </p>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Minimum: ${totals.projectedDistribution.minimum.dominick.toLocaleString()}
+                Min: {formatDualCurrency(totals.projectedDistribution.minimum.dominick).usd} / {formatDualCurrency(totals.projectedDistribution.minimum.dominick).hnl}
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Tony (Dealer Partner)</span>
-                <Badge variant="secondary" className="font-mono" data-testid="badge-tony-projected">
-                  ${totals.projectedDistribution.target.tony.toLocaleString()}
-                </Badge>
+                <div>
+                  <Badge variant="secondary" className="font-mono" data-testid="badge-tony-projected">
+                    {formatDualCurrency(totals.projectedDistribution.target.tony).usd}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground font-mono text-right mt-1">
+                    {formatDualCurrency(totals.projectedDistribution.target.tony).hnl}
+                  </p>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Minimum: ${totals.projectedDistribution.minimum.tony.toLocaleString()}
+                Min: {formatDualCurrency(totals.projectedDistribution.minimum.tony).usd} / {formatDualCurrency(totals.projectedDistribution.minimum.tony).hnl}
               </p>
             </div>
           </div>
