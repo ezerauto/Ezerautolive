@@ -156,7 +156,7 @@ export default function Inventory() {
                 </TableHeader>
                 <TableBody>
                   {filteredVehicles.map((vehicle) => {
-                    const statusInfo = statusConfig[vehicle.status as keyof typeof statusConfig];
+                    const statusInfo = statusConfig[vehicle.status as keyof typeof statusConfig] || statusConfig.in_stock;
                     const StatusIcon = statusInfo.icon;
                     const daysInInventory = calculateDaysInInventory(vehicle.dateArrived);
 
