@@ -67,9 +67,11 @@ Preferred communication style: Simple, everyday language.
 
 **Business Logic:**
 - **Cost Accounting System**: Total vehicle cost = purchase price + vehicle-specific costs + proportionally allocated shipment costs
+  - **Shared Cost Calculation Utility** (`server/services/costCalculation.ts`): Single source of truth for all cost calculations
+  - **Ledger-Only Calculations**: All financial endpoints use ledger entries exclusively (shipment fields sync to ledger but are never summed directly)
   - Shipment costs (ground transport, customs, ocean freight, import fees) are allocated across vehicles based on purchase price weight
-  - Both shipment built-in cost fields and costs table entries are combined
-  - Ensures accurate profit calculations that include all expenses
+  - Prevents double-counting: Shipment operation costs sync to ledger via `costSync` service, calculations read from ledger only
+  - Ensures accurate profit calculations across dashboard metrics, financials, profit distributions, and vehicle sales
 - **Auto-Generated Cost Ledger**: Shipment operation costs automatically sync to ledger
   - When shipments are created or updated, operation costs (ground transport, customs broker fees, ocean freight, import fees) automatically generate ledger entries
   - Transactional atomicity: shipment changes and cost sync commit or roll back together
@@ -78,6 +80,7 @@ Preferred communication style: Simple, everyday language.
   - Users can add receipts and notes to auto-generated costs but must edit shipments to adjust amounts
   - Setting a cost to 0 automatically removes the corresponding ledger entry
   - ON DELETE CASCADE automatically cleans up auto costs when shipments are deleted
+  - **Delete Protection**: Manual costs can be deleted via UI (`DELETE /api/costs/:id`), but auto-generated costs are protected from deletion (returns 400 error)
 - **Profit Distribution**: Calculated based on progress toward $150K reinvestment goal
   - Progress starts at $0 and grows only from reinvested profits (60% of gross profit)
   - During reinvestment phase (< $150K progress): 60% reinvested, 20% each to Dominick and Tony
