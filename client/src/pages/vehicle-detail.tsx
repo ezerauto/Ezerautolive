@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Car, Truck, Package, CheckCircle2 } from "lucide-react";
-import type { Vehicle } from "@shared/schema";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Car, Truck, Package, CheckCircle2, FileText, AlertCircle } from "lucide-react";
+import type { Vehicle, Contract } from "@shared/schema";
 import { EditVehicleDialog } from "@/components/EditVehicleDialog";
+import { VehicleSalesContractDialog } from "@/components/VehicleSalesContractDialog";
 
 const statusConfig = {
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
@@ -17,8 +20,15 @@ const statusConfig = {
 
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>();
+  const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  
   const { data: vehicle, isLoading } = useQuery<Vehicle>({
     queryKey: ["/api/vehicles", id],
+  });
+
+  const { data: contracts, isLoading: contractsLoading } = useQuery<Contract[]>({
+    queryKey: ["/api/vehicles", id, "contracts"],
+    enabled: !!id,
   });
 
   if (isLoading) {
@@ -60,6 +70,10 @@ export default function VehicleDetail() {
     ? Math.ceil((Date.now() - new Date(vehicle.dateArrived).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  const salesContract = contracts?.find(c => c.type === 'sale');
+  const hasSalesContract = !!salesContract;
+  const hasContractDocument = !!(salesContract?.documentUrl);
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -82,7 +96,49 @@ export default function VehicleDetail() {
             </Badge>
           </div>
         </div>
+
+        {vehicle.status === 'in_stock' && !hasSalesContract && (
+          <Alert className="mt-4 border-warning/50 bg-warning/10">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-warning">Sales contract required before marking vehicle as sold</span>
+              <Button
+                onClick={() => setContractDialogOpen(true)}
+                size="sm"
+                data-testid="button-create-sales-contract"
+                className="hover-elevate active-elevate-2"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Create Sales Contract
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {vehicle.status === 'in_stock' && hasSalesContract && !hasContractDocument && (
+          <Alert className="mt-4 border-warning/50 bg-warning/10">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning">
+              Sales contract created but document not uploaded. Upload document before marking as sold.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {vehicle.status === 'in_stock' && hasSalesContract && hasContractDocument && (
+          <Alert className="mt-4 border-success/50 bg-success/10">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <AlertDescription className="text-success">
+              ✓ Sales contract ready. Vehicle can be marked as sold when ready.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
+
+      <VehicleSalesContractDialog
+        vehicle={vehicle}
+        open={contractDialogOpen}
+        onOpenChange={setContractDialogOpen}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">

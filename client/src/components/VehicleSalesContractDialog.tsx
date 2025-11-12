@@ -68,21 +68,18 @@ export function VehicleSalesContractDialog({
     mutationFn: async (values: ContractFormValues) => {
       const partiesArray = values.parties.split(',').map(p => p.trim()).filter(Boolean);
       
-      const response = await apiRequest<{ id: string }>(`/api/vehicles/${vehicle.id}/contracts`, {
-        method: "POST",
-        body: JSON.stringify({
-          title: values.title,
-          type: "sale",
-          status: "active",
-          parties: partiesArray,
-          contractDate: new Date(values.contractDate),
-          salePrice: values.salePrice,
-          notes: values.notes,
-          relatedVehicleId: vehicle.id,
-        }),
+      const response = await apiRequest("POST", `/api/vehicles/${vehicle.id}/contracts`, {
+        title: values.title,
+        type: "sale",
+        status: "active",
+        parties: partiesArray,
+        contractDate: new Date(values.contractDate),
+        salePrice: values.salePrice,
+        notes: values.notes,
+        relatedVehicleId: vehicle.id,
       });
 
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       setContractId(data.id);
@@ -105,10 +102,8 @@ export function VehicleSalesContractDialog({
 
   const updateContractMutation = useMutation({
     mutationFn: async ({ id, documentUrl }: { id: string; documentUrl: string }) => {
-      return apiRequest<Contract>(`/api/contracts/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ documentUrl }),
-      });
+      const response = await apiRequest("PATCH", `/api/contracts/${id}`, { documentUrl });
+      return await response.json();
     },
     onSuccess: () => {
       toast({
