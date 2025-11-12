@@ -84,7 +84,7 @@ export async function generateProfitDistribution(
     reinvestmentAmount: distribution.reinvestmentAmount.toFixed(2),
     reinvestmentPhase: distribution.reinvestmentPhase,
     cumulativeReinvestment: cumulativeReinvestment.toFixed(2),
-    saleDate: vehicle.saleDate!,
+    saleDate: vehicle.saleDate || new Date(),
   });
   
   // Create two child entries (Dominick and Tony)

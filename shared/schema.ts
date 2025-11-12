@@ -112,15 +112,28 @@ export const vehiclesRelations = relations(vehicles, ({ one, many }) => ({
   costs: many(costs),
 }));
 
+const optionalDate = z.preprocess(
+  (val) => (val === "" || val === null || val === undefined) ? null : val,
+  z.coerce.date().nullable().optional()
+);
+
+const optionalDecimal = z.preprocess(
+  (val) => (val === "" || val === null || val === undefined) ? null : val,
+  z.coerce.number().nullable().optional()
+);
+
 export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
   purchaseDate: z.coerce.date(),
-  dateShipped: z.coerce.date().optional().nullable(),
-  dateArrived: z.coerce.date().optional().nullable(),
-  saleDate: z.coerce.date().optional().nullable(),
+  dateShipped: optionalDate,
+  dateArrived: optionalDate,
+  saleDate: optionalDate,
+  targetSalePrice: optionalDecimal,
+  minimumPrice: optionalDecimal,
+  actualSalePrice: optionalDecimal,
 });
 
 export const bulkImportVehicleSchema = z.object({

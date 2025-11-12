@@ -515,6 +515,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
             contractId: salesContract.id
           });
         }
+        
+        if (!salesContract.saleDate) {
+          return res.status(400).json({
+            message: "Sales contract must have a sale date before marking vehicle as sold",
+            code: "CONTRACT_SALE_DATE_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+        
+        if (!salesContract.salePrice) {
+          return res.status(400).json({
+            message: "Sales contract must have a sale price before marking vehicle as sold",
+            code: "CONTRACT_SALE_PRICE_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+        
+        // Auto-populate actualSalePrice from sales contract if not provided
+        if (!updates.actualSalePrice && salesContract.salePrice) {
+          updates.actualSalePrice = salesContract.salePrice;
+        }
+        
+        // Auto-populate saleDate from sales contract if not provided
+        if (!updates.saleDate && salesContract.saleDate) {
+          updates.saleDate = salesContract.saleDate;
+        }
+        
+        // Auto-populate buyer information from sales contract if not provided
+        if (!updates.buyerName && salesContract.buyerName) {
+          updates.buyerName = salesContract.buyerName;
+        }
+        
+        if (!updates.buyerId && salesContract.buyerContact) {
+          updates.buyerId = salesContract.buyerContact;
+        }
       }
       
       const vehicle = await storage.updateVehicle(req.params.id, updates);
@@ -571,7 +606,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/vehicles/:id', isAuthenticated, async (req, res) => {
     try {
       const validated = updateVehicleSchema.parse(req.body);
+      
+      // If attempting to mark vehicle as sold, validate sales contract exists
+      if (validated.status === 'sold') {
+        const salesContract = await storage.getVehicleContractByType(req.params.id, 'sale');
+        
+        if (!salesContract) {
+          return res.status(400).json({
+            message: "Sales contract is required before marking vehicle as sold",
+            code: "CONTRACT_REQUIRED"
+          });
+        }
+        
+        if (!salesContract.documentUrl) {
+          return res.status(400).json({
+            message: "Sales contract document must be uploaded before marking vehicle as sold",
+            code: "CONTRACT_DOCUMENT_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+        
+        if (!salesContract.saleDate) {
+          return res.status(400).json({
+            message: "Sales contract must have a sale date before marking vehicle as sold",
+            code: "CONTRACT_SALE_DATE_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+        
+        if (!salesContract.salePrice) {
+          return res.status(400).json({
+            message: "Sales contract must have a sale price before marking vehicle as sold",
+            code: "CONTRACT_SALE_PRICE_REQUIRED",
+            contractId: salesContract.id
+          });
+        }
+        
+        // Auto-populate actualSalePrice from sales contract if not provided
+        if (!validated.actualSalePrice && salesContract.salePrice) {
+          validated.actualSalePrice = salesContract.salePrice;
+        }
+        
+        // Auto-populate saleDate from sales contract if not provided
+        if (!validated.saleDate && salesContract.saleDate) {
+          validated.saleDate = salesContract.saleDate;
+        }
+        
+        // Auto-populate buyer information from sales contract if not provided
+        if (!validated.buyerName && salesContract.buyerName) {
+          validated.buyerName = salesContract.buyerName;
+        }
+        
+        if (!validated.buyerId && salesContract.buyerContact) {
+          validated.buyerId = salesContract.buyerContact;
+        }
+      }
+      
       const updated = await storage.updateVehicle(req.params.id, validated);
+      
+      // If vehicle was sold, create payment record and profit distribution
+      if (validated.status === 'sold' && validated.actualSalePrice) {
+        // Calculate cumulative reinvestment from previous sales
+        const allVehicles = await storage.listVehicles();
+        const allCosts = await storage.listCosts();
+        const allShipments = await storage.listShipments();
+        
+        // Use shared cost calculation utility
+        const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+        const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
+        
+        // Calculate cumulative reinvestment from previous sales
+        let cumulativeReinvestment = 0;
+        const previouslySoldVehicles = allVehicles.filter(v => v.status === 'sold' && v.id !== updated.id);
+        for (const v of previouslySoldVehicles) {
+          const totalCost = vehicleTotalCosts.get(v.id) || 0;
+          const profit = Number(v.actualSalePrice || 0) - totalCost;
+          if (profit > 0) {
+            cumulativeReinvestment += profit * 0.6;
+          }
+        }
+        
+        const grossProfit = Number(validated.actualSalePrice) - (vehicleTotalCosts.get(updated.id) || 0);
+        const { dominickShare } = calculateProfitDistribution(grossProfit, cumulativeReinvestment);
+        
+        // Calculate payment due date (5 business days after sale)
+        const saleDate = validated.saleDate ? new Date(validated.saleDate) : new Date();
+        const dueDate = addBusinessDays(saleDate, 5);
+        
+        await storage.createPayment({
+          paymentNumber: `PAY-${Date.now()}`,
+          vehicleId: updated.id,
+          amount: dominickShare.toString(),
+          dueDate,
+          status: 'pending',
+        });
+        
+        // Generate profit distribution for both partners
+        const { generateProfitDistribution } = await import('./services/profitDistributionService');
+        await generateProfitDistribution(updated, allVehicles, allCosts, allShipments);
+      }
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating vehicle:", error);
