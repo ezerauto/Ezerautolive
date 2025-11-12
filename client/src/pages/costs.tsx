@@ -65,15 +65,33 @@ const costFormSchema = z.object({
   shipmentId: z.string().optional().nullable(),
   vehicleId: z.string().optional().nullable(),
   notes: z.string().optional(),
-}).refine((data) => {
+}).superRefine((data, ctx) => {
   // Ensure only one of shipmentId or vehicleId is set
   if (data.shipmentId && data.vehicleId) {
-    return false;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Cannot associate with both shipment and vehicle",
+      path: ["associationType"],
+    });
   }
-  return true;
-}, {
-  message: "Cannot associate with both shipment and vehicle",
-  path: ["associationType"],
+  
+  // Require shipmentId when association type is "shipment"
+  if (data.associationType === "shipment" && !data.shipmentId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please select a shipment",
+      path: ["shipmentId"],
+    });
+  }
+  
+  // Require vehicleId when association type is "vehicle"
+  if (data.associationType === "vehicle" && !data.vehicleId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please select a vehicle",
+      path: ["vehicleId"],
+    });
+  }
 });
 
 type CostFormData = z.infer<typeof costFormSchema>;
@@ -111,13 +129,25 @@ export default function Costs() {
 
   const createCostMutation = useMutation({
     mutationFn: async (data: CostFormData) => {
+      // Guard against null IDs when association type is selected
+      const finalShipmentId = data.associationType === "shipment" ? data.shipmentId : null;
+      const finalVehicleId = data.associationType === "vehicle" ? data.vehicleId : null;
+      
+      // Additional safety check
+      if (data.associationType === "shipment" && !finalShipmentId) {
+        throw new Error("Shipment must be selected");
+      }
+      if (data.associationType === "vehicle" && !finalVehicleId) {
+        throw new Error("Vehicle must be selected");
+      }
+      
       return apiRequest("POST", "/api/costs", {
         category: data.category,
         amount: data.amount,
         costDate: data.costDate,
         vendor: data.vendor || null,
-        shipmentId: data.associationType === "shipment" ? data.shipmentId : null,
-        vehicleId: data.associationType === "vehicle" ? data.vehicleId : null,
+        shipmentId: finalShipmentId,
+        vehicleId: finalVehicleId,
         receiptUrl: receiptUrl,
         notes: data.notes || null,
       });
