@@ -80,6 +80,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(p => p.status === 'pending')
         .reduce((sum, p) => sum + Number(p.amount || 0), 0);
       
+      // Calculate alerts
+      const now = new Date();
+      const overduePayments = allPayments.filter(p => 
+        p.status === 'pending' && new Date(p.dueDate) < now
+      );
+      
+      const vehiclesOlderThan60Days = vehiclesInStock.filter(v => {
+        if (!v.dateArrived) return false;
+        const daysInInventory = Math.ceil((now.getTime() - new Date(v.dateArrived).getTime()) / (1000 * 60 * 60 * 24));
+        return daysInInventory > 60;
+      });
+      
       // Generate sample data for charts
       const inventoryGrowth = [
         { date: 'Jan', value: currentInventoryValue * 0.3 },
@@ -119,6 +131,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           revenue: soldVehicles.reduce((sum, v) => sum + Number(v.actualSalePrice || 0), 0),
         },
         pendingPayments,
+        alerts: {
+          overduePayments: {
+            count: overduePayments.length,
+            totalAmount: overduePayments.reduce((sum, p) => sum + Number(p.amount || 0), 0),
+            payments: overduePayments.map(p => ({ id: p.id, paymentNumber: p.paymentNumber, amount: p.amount, dueDate: p.dueDate })),
+          },
+          longInventoryVehicles: {
+            count: vehiclesOlderThan60Days.length,
+            vehicles: vehiclesOlderThan60Days.map(v => ({
+              id: v.id,
+              year: v.year,
+              make: v.make,
+              model: v.model,
+              vin: v.vin,
+              dateArrived: v.dateArrived,
+              daysInInventory: v.dateArrived ? Math.ceil((now.getTime() - new Date(v.dateArrived).getTime()) / (1000 * 60 * 60 * 24)) : 0,
+            })),
+          },
+          approaching150K: currentInventoryValue >= GOAL_AMOUNT * 0.9 && currentInventoryValue < GOAL_AMOUNT,
+          reached150K: currentInventoryValue >= GOAL_AMOUNT,
+        },
         inventoryGrowth,
         portfolioComposition,
         priceComparison,
