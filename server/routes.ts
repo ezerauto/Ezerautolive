@@ -2171,6 +2171,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ uploadURL, publicURL });
   });
 
+  // Partners routes
+  app.get('/api/partners', isAuthenticated, async (req, res) => {
+    try {
+      const { type, isActive } = req.query;
+      const filters: { type?: string; isActive?: boolean } = {};
+      
+      if (type) filters.type = type as string;
+      if (isActive !== undefined) filters.isActive = isActive === 'true';
+      
+      const partners = await storage.listPartners(filters);
+      res.json(partners);
+    } catch (error) {
+      console.error("Error fetching partners:", error);
+      res.status(500).json({ message: "Failed to fetch partners" });
+    }
+  });
+
+  app.post('/api/partners/seed', isAuthenticated, async (req, res) => {
+    try {
+      const seedPartners = [
+        {
+          name: 'Royal Shipping',
+          type: 'shipping',
+          contactInfo: { phone: '504-2234-5678', email: 'royal@shipping.hn' },
+          isActive: true,
+        },
+        {
+          name: 'Denver Hauling LLC',
+          type: 'trucking',
+          contactInfo: { phone: '720-555-1234', email: 'dispatch@denverhauling.com' },
+          isActive: true,
+        },
+        {
+          name: 'Rocky Mountain Transport',
+          type: 'trucking',
+          contactInfo: { phone: '303-555-5678', email: 'info@rockymtntrans.com' },
+          isActive: true,
+        },
+        {
+          name: 'Roatán Customs Solutions',
+          type: 'customs_broker',
+          contactInfo: { phone: '504-2445-9876', email: 'contact@roatancustoms.hn' },
+          isActive: true,
+        },
+        {
+          name: 'Honduras Import Services',
+          type: 'customs_broker',
+          contactInfo: { phone: '504-2556-7890', email: 'info@hnimport.com' },
+          isActive: true,
+        },
+      ];
+
+      const created = [];
+      for (const partnerData of seedPartners) {
+        try {
+          const partner = await storage.createPartner(partnerData);
+          created.push(partner);
+        } catch (error: any) {
+          if (error.code === '23505' || error.message?.includes('unique')) {
+            console.log(`Partner ${partnerData.name} already exists, skipping`);
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      res.json({ 
+        message: `Seeded ${created.length} partners`,
+        created 
+      });
+    } catch (error) {
+      console.error("Error seeding partners:", error);
+      res.status(500).json({ message: "Failed to seed partners" });
+    }
+  });
+
   // Profit distribution routes
   app.get('/api/profit-distributions', isAuthenticated, async (req, res) => {
     try {
