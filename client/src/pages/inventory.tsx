@@ -14,10 +14,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link } from "wouter";
-import { Car, Truck, Package, CheckCircle2, Plus, Trash2 } from "lucide-react";
+import { Car, Truck, Package, CheckCircle2, Plus, Trash2, MoreHorizontal, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { CreateVehicleDialog } from "@/components/CreateVehicleDialog";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
 import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
+import { ExportReadinessIndicator } from "@/components/ExportReadinessIndicator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -146,11 +153,9 @@ export default function Inventory() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-semibold">Vehicle</TableHead>
-                    <TableHead className="font-semibold">VIN</TableHead>
-                    <TableHead className="font-semibold text-right">Purchase Price</TableHead>
-                    <TableHead className="font-semibold text-right">Target Price</TableHead>
-                    <TableHead className="font-semibold text-right">Min Price</TableHead>
+                    <TableHead className="font-semibold text-right">Pricing</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Export Ready</TableHead>
                     <TableHead className="font-semibold text-center">Days</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
@@ -160,6 +165,10 @@ export default function Inventory() {
                     const statusInfo = statusConfig[vehicle.status as keyof typeof statusConfig] || statusConfig.in_stock;
                     const StatusIcon = statusInfo.icon;
                     const daysInInventory = calculateDaysInInventory(vehicle.dateArrived);
+                    const targetPrice = Number(vehicle.targetSalePrice || 0);
+                    const purchasePrice = Number(vehicle.purchasePrice);
+                    const spread = targetPrice - purchasePrice;
+                    const spreadPercent = purchasePrice > 0 ? (spread / purchasePrice) * 100 : 0;
 
                     return (
                       <TableRow
@@ -173,10 +182,10 @@ export default function Inventory() {
                               <img
                                 src={vehicle.photoUrls[0]}
                                 alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                className="h-12 w-12 rounded object-cover"
+                                className="h-14 w-14 rounded object-cover"
                               />
                             ) : (
-                              <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
+                              <div className="h-14 w-14 rounded bg-muted flex items-center justify-center">
                                 <Car className="h-6 w-6 text-muted-foreground" />
                               </div>
                             )}
@@ -184,21 +193,35 @@ export default function Inventory() {
                               <div className="font-medium" data-testid={`text-vehicle-name-${vehicle.id}`}>
                                 {vehicle.year} {vehicle.make} {vehicle.model}
                               </div>
-                              <div className="text-xs text-muted-foreground">{vehicle.color}</div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {vehicle.vin.slice(-6)}
+                                </span>
+                                {spreadPercent > 15 && (
+                                  <Badge variant="default" className="text-xs gap-1">
+                                    <TrendingUp className="h-3 w-3" />
+                                    +{spreadPercent.toFixed(0)}%
+                                  </Badge>
+                                )}
+                                {spreadPercent < -5 && (
+                                  <Badge variant="destructive" className="text-xs gap-1">
+                                    <TrendingDown className="h-3 w-3" />
+                                    {spreadPercent.toFixed(0)}%
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs" data-testid={`text-vin-${vehicle.id}`}>
-                          {vehicle.vin.slice(-6)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          ${Number(vehicle.purchasePrice).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-success">
-                          ${Number(vehicle.targetSalePrice || 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-warning">
-                          ${Number(vehicle.minimumPrice || 0).toLocaleString()}
+                        <TableCell className="text-right">
+                          <div className="space-y-1">
+                            <div className="text-sm font-mono">
+                              ${purchasePrice.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              → ${targetPrice.toLocaleString()}
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <VehicleStatusDropdown 
@@ -206,35 +229,44 @@ export default function Inventory() {
                             currentStatus={vehicle.status}
                           />
                         </TableCell>
-                        <TableCell className="text-center font-mono" data-testid={`text-days-${vehicle.id}`}>
+                        <TableCell>
+                          <ExportReadinessIndicator vehicle={vehicle} />
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-sm" data-testid={`text-days-${vehicle.id}`}>
                           {daysInInventory > 0 ? daysInInventory : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Link href={`/inventory/${vehicle.id}`}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                data-testid={`button-view-${vehicle.id}`}
+                                data-testid={`button-actions-${vehicle.id}`}
                                 className="hover-elevate active-elevate-2"
                               >
-                                View
+                                <MoreHorizontal className="h-4 w-4" />
                               </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm(`Delete ${vehicle.year} ${vehicle.make} ${vehicle.model}?`)) {
-                                  deleteMutation.mutate(vehicle.id);
-                                }
-                              }}
-                              data-testid={`button-delete-${vehicle.id}`}
-                              className="hover-elevate active-elevate-2 text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <Link href={`/inventory/${vehicle.id}`}>
+                                <DropdownMenuItem data-testid={`menu-view-${vehicle.id}`}>
+                                  View Details
+                                </DropdownMenuItem>
+                              </Link>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  if (confirm(`Delete ${vehicle.year} ${vehicle.make} ${vehicle.model}?`)) {
+                                    deleteMutation.mutate(vehicle.id);
+                                  }
+                                }}
+                                data-testid={`menu-delete-${vehicle.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Vehicle
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     );

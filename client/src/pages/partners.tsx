@@ -28,10 +28,7 @@ export default function Partners() {
 
   const seedMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/partners/seed', {
-        method: 'POST',
-        body: {},
-      });
+      return apiRequest('POST', '/api/partners/seed', {});
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/partners'] });
