@@ -1,14 +1,15 @@
 import {
-  BarChart3,
+  LayoutDashboard,
   Truck,
-  Warehouse,
+  Package,
   FileText,
-  DollarSign,
-  Handshake,
+  TrendingUp,
+  CreditCard,
   Receipt,
   User,
-  TrendingUp,
+  Building2,
   Users,
+  BarChart3,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -26,13 +27,37 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-const menuItems = [
+type MenuItem = {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  testId: string;
+  badge?: string;
+};
+
+const dashboardItems: MenuItem[] = [
   {
-    title: "The Books",
+    title: "Overview",
     url: "/",
-    icon: BarChart3,
+    icon: LayoutDashboard,
     testId: "link-dashboard",
+  },
+  {
+    title: "Financials",
+    url: "/financials",
+    icon: TrendingUp,
+    testId: "link-financials",
+  },
+];
+
+const operationsItems: MenuItem[] = [
+  {
+    title: "Inventory",
+    url: "/inventory",
+    icon: Package,
+    testId: "link-inventory",
   },
   {
     title: "Shipments",
@@ -41,46 +66,38 @@ const menuItems = [
     testId: "link-shipments",
   },
   {
-    title: "The Vault",
-    url: "/inventory",
-    icon: Warehouse,
-    testId: "link-inventory",
+    title: "Operations Hub",
+    url: "/operations",
+    icon: Building2,
+    testId: "link-operations",
+    badge: "EZER",
   },
+];
+
+const transactionsItems: MenuItem[] = [
   {
-    title: "Arrangements",
-    url: "/contracts",
-    icon: FileText,
-    testId: "link-contracts",
-  },
-  {
-    title: "The Take",
-    url: "/financials",
-    icon: DollarSign,
-    testId: "link-financials",
-  },
-  {
-    title: "Collections",
+    title: "Payments",
     url: "/payments",
-    icon: Handshake,
+    icon: CreditCard,
     testId: "link-payments",
   },
   {
-    title: "The Ledger",
+    title: "Costs",
     url: "/costs",
     icon: Receipt,
     testId: "link-costs",
   },
+  {
+    title: "Contracts",
+    url: "/contracts",
+    icon: FileText,
+    testId: "link-contracts",
+  },
 ];
 
-const ezerMenuItems = [
+const networkItems: MenuItem[] = [
   {
-    title: "EZER Auto HQ",
-    url: "/operations",
-    icon: TrendingUp,
-    testId: "link-operations",
-  },
-  {
-    title: "The Network",
+    title: "Partners",
     url: "/partners",
     icon: Users,
     testId: "link-partners",
@@ -91,71 +108,86 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
+  const renderMenuItems = (items: MenuItem[]) => {
+    return items.map((item) => {
+      const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+      return (
+        <SidebarMenuItem key={item.title}>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive}
+            data-testid={item.testId}
+          >
+            <Link href={item.url} className="flex items-center gap-3 px-3 py-2.5">
+              <item.icon className="h-4 w-4" />
+              <span className="flex-1">{item.title}</span>
+              {item.badge && (
+                <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-5 no-default-hover-elevate no-default-active-elevate">
+                  {item.badge}
+                </Badge>
+              )}
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      );
+    });
+  };
+
   return (
     <Sidebar>
-      <SidebarHeader className="p-6 border-b border-sidebar-border">
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <DollarSign className="h-6 w-6 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80">
+            <BarChart3 className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
-            <h2 className="text-base font-semibold">The Family Business</h2>
-            <p className="text-xs text-muted-foreground">Partnership Operations</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold">EZER Auto Import</h2>
+            <p className="text-xs text-muted-foreground truncate">Partnership Dashboard</p>
           </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            The Family
+      <SidebarContent className="px-2 py-4">
+        <SidebarGroup className="mb-4">
+          <SidebarGroupLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Dashboard
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      data-testid={item.testId}
-                    >
-                      <Link href={item.url} className="flex items-center gap-3 px-4 py-3">
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+            <SidebarMenu className="gap-0.5">
+              {renderMenuItems(dashboardItems)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mb-4">
+          <SidebarGroupLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Operations
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0.5">
+              {renderMenuItems(operationsItems)}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mb-4">
+          <SidebarGroupLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Transactions
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0.5">
+              {renderMenuItems(transactionsItems)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            EZER Auto Operations
+          <SidebarGroupLabel className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Network
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {ezerMenuItems.map((item) => {
-                const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      data-testid={item.testId}
-                    >
-                      <Link href={item.url} className="flex items-center gap-3 px-4 py-3">
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+            <SidebarMenu className="gap-0.5">
+              {renderMenuItems(networkItems)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

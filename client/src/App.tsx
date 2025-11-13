@@ -23,6 +23,8 @@ import Costs from "@/pages/costs";
 import Operations from "@/pages/operations";
 import Partners from "@/pages/partners";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { useMemo } from "react";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -46,9 +48,11 @@ function Router() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1">
-          <header className="flex h-16 items-center justify-between px-6 border-b border-border bg-background sticky top-0 z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+          <header className="flex h-16 items-center justify-between px-8 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
             <div className="flex items-center gap-4">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+            </div>
+            <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm font-medium" data-testid="text-header-user-name">
