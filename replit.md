@@ -11,6 +11,14 @@ The application tracks a profit-sharing arrangement calculated at the shipment l
 ### November 13, 2025
 - **Fixed Projected Sales & Profits Data Sync Issue**: Refactored `/api/analytics/projections` endpoint to use shared `calculateVehicleTotalCosts` utility from `costCalculation.ts`, eliminating 47 lines of duplicate cost calculation logic. This ensures projected sales/profits now sync with actual data and follow the ledger-only calculation principle system-wide.
 - **Sales Contract Workflow**: Implemented complete sales contract requirement for marking vehicles as sold, including validation for sale date and sale price, auto-population of vehicle sale fields from contract, and automatic profit distribution generation.
+- **Contract Signing System with DOB Identity Verification**: Implemented complete digital signature workflow for contracts with security features including:
+  - DOB-based identity verification (date-only comparison to prevent timezone manipulation)
+  - Rate limiting (3 attempts per 15 minutes to prevent guessing attacks)
+  - Document integrity tracking via SHA-256 hashing
+  - Audit trail with IP address, user agent, and signature timestamps
+  - Contract required signers table to define who must sign
+  - Automatic status tracking (pending → in_progress → completed)
+  - Frontend UI for viewing contracts, signature status, and signing with DOB verification modal
 
 ## User Preferences
 
