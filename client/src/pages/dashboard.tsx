@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   DollarSign,
   TrendingUp,
@@ -14,6 +16,8 @@ import {
   Clock,
   TrendingDown,
   RefreshCw,
+  MapPin,
+  Globe,
 } from "lucide-react";
 import { ProjectedSalesWidget } from "@/components/ProjectedSalesWidget";
 import { formatDualCurrency } from "@/lib/currency";
@@ -52,11 +56,48 @@ type DashboardMetrics = {
 };
 
 export default function Dashboard() {
+  const [location, setLocation] = useState<'all' | 'roatan' | 'omaha'>('all');
+  
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
-    queryKey: ["/api/dashboard/metrics"],
+    queryKey: ["/api/dashboard/metrics", { location }],
   });
 
   const GOAL_AMOUNT = 150000;
+  
+  const locationButtons = (
+    <div className="flex gap-2" data-testid="location-filter">
+      <Button
+        variant={location === 'all' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => setLocation('all')}
+        className="gap-1"
+        data-testid="button-location-all"
+      >
+        <Globe className="h-3 w-3" />
+        All Locations
+      </Button>
+      <Button
+        variant={location === 'roatan' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => setLocation('roatan')}
+        className="gap-1"
+        data-testid="button-location-roatan"
+      >
+        <MapPin className="h-3 w-3" />
+        Roatán
+      </Button>
+      <Button
+        variant={location === 'omaha' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => setLocation('omaha')}
+        className="gap-1"
+        data-testid="button-location-omaha"
+      >
+        <MapPin className="h-3 w-3" />
+        Omaha
+      </Button>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -119,6 +160,7 @@ export default function Dashboard() {
       subtitle="Financial overview and business metrics"
       breadcrumbs={[{ label: "Dashboard" }]}
       kpiCards={kpiCards}
+      actions={locationButtons}
     >
       {/* Goal Progress Card */}
       <Card data-testid="card-goal-progress">

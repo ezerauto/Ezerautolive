@@ -182,21 +182,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard metrics endpoint
   app.get('/api/dashboard/metrics', isAuthenticated, async (req, res) => {
     try {
+      const { location } = req.query; // 'roatan', 'omaha', or 'all' (default)
+      
       const allVehicles = await storage.listVehicles();
       const allCosts = await storage.listCosts();
       const allShipments = await storage.listShipments();
       
-      // Use shared cost calculation utility
+      // Filter vehicles by location if specified
+      const filteredVehicles = location && location !== 'all'
+        ? allVehicles.filter(v => {
+            const vehicleLocation = (v.saleLocation || 'export').toLowerCase();
+            if (location === 'roatan') {
+              return vehicleLocation === 'export'; // Export vehicles go to Roatán
+            } else if (location === 'omaha') {
+              return vehicleLocation === 'domestic'; // Domestic vehicles sold in Omaha
+            }
+            return true;
+          })
+        : allVehicles;
+      
+      // Use shared cost calculation utility (still use all vehicles for cost calculation)
       const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
       const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
       
-      // Calculate metrics including ALL costs
-      const totalInvestment = Array.from(vehicleTotalCosts.values()).reduce((sum, cost) => sum + cost, 0);
+      // Calculate metrics including ALL costs (but only for filtered vehicles)
+      const totalInvestment = Array.from(vehicleTotalCosts.entries())
+        .filter(([vehicleId]) => filteredVehicles.some(v => v.id === vehicleId))
+        .reduce((sum, [, cost]) => sum + cost, 0);
       
-      const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold');
+      const unsoldVehicles = filteredVehicles.filter(v => v.status !== 'sold');
       const currentInventoryValue = unsoldVehicles.reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0);
       
-      const soldVehicles = allVehicles.filter(v => v.status === 'sold');
+      const soldVehicles = filteredVehicles.filter(v => v.status === 'sold');
       
       // Calculate progress by accumulating only positive profit contributions
       // Progress = cumulative sum of (60% of each profitable sale)
@@ -218,8 +235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const progressTo150K = Math.min(cumulativeReinvestment, GOAL_AMOUNT); // Cap at $150K
       const reinvestmentPhase = progressTo150K < GOAL_AMOUNT;
       
-      const vehiclesInTransit = allVehicles.filter(v => v.status === 'in_transit');
-      const vehiclesInStock = allVehicles.filter(v => v.status === 'in_stock');
+      const vehiclesInTransit = filteredVehicles.filter(v => v.status === 'in_transit');
+      const vehiclesInStock = filteredVehicles.filter(v => v.status === 'in_stock');
       
       // Calculate vehicle values using total costs (purchase + all associated costs)
       const vehiclesInTransitValue = vehiclesInTransit.reduce((sum, v) => sum + (vehicleTotalCosts.get(v.id) || 0), 0);
