@@ -18,6 +18,8 @@ import { ValuationProfitabilityCard } from "@/components/ValuationProfitabilityC
 import { SaleLocationToggle } from "@/components/SaleLocationToggle";
 import { LempiraPricingCard } from "@/components/LempiraPricingCard";
 import { VehicleNotesEditor } from "@/components/VehicleNotesEditor";
+import { VehiclePhotoUploader } from "@/components/VehiclePhotoUploader";
+import { VehicleDocumentUploader } from "@/components/VehicleDocumentUploader";
 
 const statusConfig = {
   acquired: { label: "Acquired", icon: CheckCircle2, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" },
@@ -275,6 +277,17 @@ export default function VehicleDetail() {
         </Card>
 
         <div className="space-y-6">
+          <VehiclePhotoUploader
+            vehicleId={vehicle.id}
+            currentPhotos={vehicle.photoUrls}
+          />
+
+          <VehicleDocumentUploader
+            vehicleId={vehicle.id}
+            billOfSaleUrl={vehicle.billOfSaleUrl}
+            titleUrl={vehicle.titleUrl}
+          />
+
           <LempiraPricingCard
             vehicleId={vehicle.id}
             currentPriceUsd={vehicle.targetSalePrice}
