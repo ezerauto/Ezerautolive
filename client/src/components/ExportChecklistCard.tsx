@@ -101,17 +101,9 @@ export function ExportChecklistCard({ vehicle }: Props) {
                   </div>
                 </div>
                 {!check.met && key !== 'titleStatus' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled
-                    data-testid={`button-upload-${key}`}
-                    className="cursor-not-allowed opacity-50"
-                    title="Upload feature coming soon - use Edit Vehicle to add documents"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload
-                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Use "Edit Vehicle" to add
+                  </span>
                 )}
               </div>
             );
@@ -121,8 +113,21 @@ export function ExportChecklistCard({ vehicle }: Props) {
         {!allReady && (
           <Alert>
             <AlertDescription className="text-sm">
-              <strong>Note:</strong> Attempting to mark as "In Transit" without meeting all requirements
-              will be blocked by the system.
+              <div className="space-y-2">
+                <div>
+                  <strong>To upload documents:</strong>
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-xs">
+                  <li>Open "Object Storage" tool pane in Replit</li>
+                  <li>Upload files to the <code className="px-1 py-0.5 rounded bg-muted">public</code> folder</li>
+                  <li>Copy the file URLs</li>
+                  <li>Click "Edit Vehicle" button and paste the URLs</li>
+                </ol>
+                <div className="pt-1">
+                  <strong>Note:</strong> Attempting to mark as "In Transit" without meeting all requirements
+                  will be blocked by the system.
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         )}

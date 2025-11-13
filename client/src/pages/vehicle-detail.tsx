@@ -14,7 +14,6 @@ import { VehicleSalesContractDialog } from "@/components/VehicleSalesContractDia
 import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
 import { VehicleWorkflowStepper } from "@/components/VehicleWorkflowStepper";
 import { ExportChecklistCard } from "@/components/ExportChecklistCard";
-import { ValuationProfitabilityCard } from "@/components/ValuationProfitabilityCard";
 import { SaleLocationToggle } from "@/components/SaleLocationToggle";
 import { LempiraPricingCard } from "@/components/LempiraPricingCard";
 import { VehicleNotesEditor } from "@/components/VehicleNotesEditor";
@@ -298,8 +297,6 @@ export default function VehicleDetail() {
             vehicleId={vehicle.id}
             initialNotes={vehicle.notes}
           />
-
-          <ValuationProfitabilityCard vehicle={vehicle} />
 
           <ExportChecklistCard vehicle={vehicle} />
 
