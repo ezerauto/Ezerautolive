@@ -47,12 +47,13 @@ export const shipments = pgTable("shipments", {
   shipmentNumber: varchar("shipment_number").notNull().unique(),
   shipmentDate: timestamp("shipment_date").notNull(),
   route: text("route").notNull(),
-  status: varchar("status", { length: 50 }).notNull().default('in_transit'),
+  status: varchar("status", { length: 50 }).notNull().default('planned'),
   groundTransportCost: decimal("ground_transport_cost", { precision: 10, scale: 2 }).default('0'),
   customsBrokerFees: decimal("customs_broker_fees", { precision: 10, scale: 2 }).default('0'),
   oceanFreightCost: decimal("ocean_freight_cost", { precision: 10, scale: 2 }).default('0'),
   importFees: decimal("import_fees", { precision: 10, scale: 2 }).default('0'),
   billOfLadingUrl: text("bill_of_lading_url"),
+  truckerPacketUrls: text("trucker_packet_urls").array(),
   brokerReceiptUrls: text("broker_receipt_urls").array(),
   documentUrls: text("document_urls").array(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -75,6 +76,7 @@ export const insertShipmentSchema = createInsertSchema(shipments).omit({
   updatedAt: true,
 }).extend({
   shipmentDate: z.coerce.date(),
+  status: z.enum(['planned', 'in_ground_transit', 'at_port', 'on_vessel', 'arrived', 'customs_cleared', 'completed']).optional().default('planned'),
 });
 
 export type InsertShipment = z.infer<typeof insertShipmentSchema>;
@@ -753,7 +755,7 @@ export type InsertCustomsClearance = z.infer<typeof insertCustomsClearanceSchema
 export type CustomsClearance = typeof customsClearance.$inferSelect;
 
 // Status types
-export type ShipmentStatus = 'in_transit' | 'arrived' | 'customs_cleared' | 'completed';
+export type ShipmentStatus = 'planned' | 'in_ground_transit' | 'at_port' | 'on_vessel' | 'arrived' | 'customs_cleared' | 'completed';
 export type VehicleStatus = 'acquired' | 'in_transit' | 'in_stock' | 'sold';
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 export type ContractStatus = 'active' | 'pending' | 'completed';

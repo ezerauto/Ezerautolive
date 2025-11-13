@@ -283,7 +283,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/shipments/:id', isAuthenticated, async (req, res) => {
     try {
-      const updates = req.body;
+      // Clone updates to avoid mutating req.body
+      const updates = { ...req.body };
+      
+      // Normalize status to canonical values for consistent storage
+      if (updates.status) {
+        updates.status = updates.status.trim().toLowerCase().replace(/\s+/g, '_');
+        
+        // Validate against ShipmentStatus enum
+        const validStatuses = ['planned', 'in_ground_transit', 'at_port', 'on_vessel', 'arrived', 'customs_cleared', 'completed'];
+        if (!validStatuses.includes(updates.status)) {
+          return res.status(400).json({
+            message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+            code: "INVALID_STATUS"
+          });
+        }
+      }
+      
+      // Royal Shipping Transition Guards
+      if (updates.status) {
+        const shipment = await storage.getShipment(req.params.id);
+        if (!shipment) {
+          return res.status(404).json({ message: "Shipment not found" });
+        }
+        
+        // Normalize existing shipment status for comparison
+        const currentStatus = shipment.status?.trim().toLowerCase().replace(/\s+/g, '_');
+        
+        // Guard 1: Planned → In Ground Transit requires vehicles assigned
+        if (currentStatus === 'planned' && updates.status === 'in_ground_transit') {
+          const vehicles = await storage.listVehicles();
+          const assignedVehicles = vehicles.filter(v => v.shipmentId === req.params.id);
+          
+          if (assignedVehicles.length === 0) {
+            return res.status(422).json({
+              message: "Cannot transition to In Ground Transit: No vehicles assigned to this shipment",
+              code: "NO_VEHICLES_ASSIGNED",
+              currentStatus: 'planned',
+              attemptedStatus: 'in_ground_transit',
+              requirement: "At least one vehicle must be assigned to the shipment"
+            });
+          }
+        }
+        
+        // Guard 2: At Port → On Vessel requires BOL and trucker packet docs
+        if (currentStatus === 'at_port' && updates.status === 'on_vessel') {
+          const violations: string[] = [];
+          
+          // Check bill of lading
+          if (!shipment.billOfLadingUrl && !updates.billOfLadingUrl) {
+            violations.push("Bill of Lading document required");
+          }
+          
+          // Check trucker packet docs (need at least 1)
+          // If updates.truckerPacketUrls is undefined, keep existing docs
+          // If it's an empty array, it means clearing all docs
+          const existingPackets = shipment.truckerPacketUrls || [];
+          const finalPackets = updates.truckerPacketUrls !== undefined 
+            ? updates.truckerPacketUrls 
+            : existingPackets;
+          
+          if (finalPackets.length === 0) {
+            violations.push("At least one trucker packet document required");
+          }
+          
+          if (violations.length > 0) {
+            return res.status(422).json({
+              message: "Cannot transition to On Vessel: Missing required shipping documents",
+              code: "SHIPPING_DOCS_INCOMPLETE",
+              currentStatus: 'at_port',
+              attemptedStatus: 'on_vessel',
+              violations
+            });
+          }
+        }
+      }
+      
       const shipment = await storage.updateShipment(req.params.id, updates);
       res.json(shipment);
     } catch (error: any) {
@@ -578,7 +653,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/vehicles/:id', isAuthenticated, async (req, res) => {
     try {
-      const updates = req.body;
+      // Clone updates to avoid mutating req.body
+      const updates = { ...req.body };
       
       // Normalize status to canonical values for consistent storage
       if (updates.status) {
