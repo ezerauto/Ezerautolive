@@ -246,6 +246,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Leaderboard routes
+  app.get('/api/leaderboards/sales', isAuthenticated, async (req, res) => {
+    try {
+      const allVehicles = await storage.listVehicles();
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
+      
+      const { calculateSalesMetrics } = await import('./services/leaderboardService');
+      const metrics = calculateSalesMetrics(allVehicles, allCosts, allShipments);
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching sales leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch sales leaderboard" });
+    }
+  });
+
+  app.get('/api/leaderboards/procurement', isAuthenticated, async (req, res) => {
+    try {
+      const allVehicles = await storage.listVehicles();
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
+      
+      const { calculateProcurementMetrics } = await import('./services/leaderboardService');
+      const metrics = calculateProcurementMetrics(allVehicles, allCosts, allShipments);
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching procurement leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch procurement leaderboard" });
+    }
+  });
+
+  app.get('/api/leaderboards/logistics', isAuthenticated, async (req, res) => {
+    try {
+      const { clearances, allShipments } = await storage.getLogisticsMetrics();
+      
+      const { calculateLogisticsMetrics } = await import('./services/leaderboardService');
+      const metrics = calculateLogisticsMetrics(clearances, allShipments);
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching logistics leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch logistics leaderboard" });
+    }
+  });
+
   // Shipment routes
   app.get('/api/shipments', isAuthenticated, async (req, res) => {
     try {

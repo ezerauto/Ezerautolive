@@ -894,6 +894,61 @@ export class DatabaseStorage implements IStorage {
   async deleteCustomsClearance(id: string): Promise<void> {
     await db.delete(customsClearance).where(eq(customsClearance.id, id));
   }
+
+  // Leaderboard Metrics
+  async getSalesMetrics() {
+    const soldVehicles = await db.select({
+      id: vehicles.id,
+      actualSalePrice: vehicles.actualSalePrice,
+      buyerName: vehicles.buyerName,
+      saleDate: vehicles.saleDate,
+      purchasePrice: vehicles.purchasePrice,
+      reconCost: vehicles.reconCost,
+    }).from(vehicles).where(sql`${vehicles.saleDate} IS NOT NULL`);
+
+    const soldVehicleIds = soldVehicles.map(v => v.id);
+    
+    const vehicleCosts = soldVehicleIds.length > 0
+      ? await db.select().from(costs).where(sql`${costs.vehicleId} IN ${soldVehicleIds}`)
+      : [];
+
+    return { soldVehicles, vehicleCosts };
+  }
+
+  async getProcurementMetrics() {
+    const acquiredVehicles = await db.select({
+      id: vehicles.id,
+      purchasePrice: vehicles.purchasePrice,
+      reconCost: vehicles.reconCost,
+      targetSalePrice: vehicles.targetSalePrice,
+      actualSalePrice: vehicles.actualSalePrice,
+      saleDate: vehicles.saleDate,
+    }).from(vehicles);
+
+    const vehicleIds = acquiredVehicles.map(v => v.id);
+    const vehicleCosts = vehicleIds.length > 0
+      ? await db.select().from(costs).where(sql`${costs.vehicleId} IN ${vehicleIds}`)
+      : [];
+
+    return { acquiredVehicles, vehicleCosts };
+  }
+
+  async getLogisticsMetrics() {
+    const clearances = await db.select({
+      id: customsClearance.id,
+      status: customsClearance.status,
+      submittedAt: customsClearance.submittedAt,
+      clearedAt: customsClearance.clearedAt,
+    }).from(customsClearance);
+
+    const allShipments = await db.select({
+      id: shipments.id,
+      billOfLadingUrl: shipments.billOfLadingUrl,
+      truckerPacketUrls: shipments.truckerPacketUrls,
+    }).from(shipments);
+
+    return { clearances, allShipments };
+  }
 }
 
 export const storage = new DatabaseStorage();
