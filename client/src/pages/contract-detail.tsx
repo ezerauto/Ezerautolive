@@ -238,6 +238,20 @@ export default function ContractDetail() {
                       className="w-full h-[600px]"
                       title="Contract Document Preview"
                     />
+                  ) : contract.documentUrl.toLowerCase().endsWith('.docx') || contract.documentUrl.toLowerCase().endsWith('.doc') ? (
+                    <div className="flex flex-col items-center justify-center py-16 px-6">
+                      <FileText className="h-24 w-24 text-muted-foreground mb-6" />
+                      <h4 className="font-semibold text-lg mb-2">Microsoft Word Document</h4>
+                      <p className="text-sm text-muted-foreground text-center mb-6">
+                        This document cannot be previewed in the browser. Please download it to view.
+                      </p>
+                      <Button asChild data-testid="button-download-docx">
+                        <a href={contract.documentUrl} download>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Document
+                        </a>
+                      </Button>
+                    </div>
                   ) : (
                     <img
                       src={contract.documentUrl}

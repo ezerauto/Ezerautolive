@@ -19,6 +19,11 @@ The application tracks a profit-sharing arrangement calculated at the shipment l
   - Contract required signers table to define who must sign
   - Automatic status tracking (pending → in_progress → completed)
   - Frontend UI for viewing contracts, signature status, and signing with DOB verification modal
+- **Contract Document Management**: Implemented complete document preview and download system:
+  - Added static file server for contract documents at `/public/contracts/`
+  - Uploaded real legal documents: MIPA Master Consignment Agreement, Per-Vehicle Sale Closure, Personal Vehicle Custody Agreement, Vehicle Receipt & Inspection Certificate
+  - Smart document preview: PDFs embedded in iframe, DOCX files show download interface, images displayed inline
+  - All contract types (partnership, arrival inspection, sale closure, custody) now clickable and navigate to detail view with document preview
 
 ## User Preferences
 
