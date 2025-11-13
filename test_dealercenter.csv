@@ -1,0 +1,5 @@
+VIN,Year,Make,Model,Trim,Odometer,Cost,Reconditioning,Lot,Status,Asking Price,Exterior Color,Interior Color,Purchase Date,Purchase Source
+1N4AL3AP4GC123456,2016,Nissan,Altima,SV,112345,$5,400,250,Omaha,In Stock,7995,Gray,Black,2025-10-02,Manheim
+3FA6P0H73HR123457,2017,Ford,Fusion,SE,96500, 4300 , ,Denver,Acquired,6995,White,Beige,2025-09-14,Private Seller
+5YJSA1E26HF123458,2017,Tesla,Model S,75D,68000,$24,900,2100,Omaha,In Stock,38995,Black,Black,2025-08-20,Dealer Trade
+BADVIN,2012,Dodge,Ram 1500,SLT,150000,7200,600,Denver,In Stock,12995,Red,Gray,2025-07-11,Manheim

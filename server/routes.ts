@@ -17,7 +17,8 @@ import {
   insertContractWorkflowSchema,
   insertWorkflowPhaseSchema,
   insertPhaseDocumentSchema,
-  insertDealerCenterImportSchema
+  insertDealerCenterImportSchema,
+  insertValuationSchema
 } from "@shared/schema";
 import { createHash } from "crypto";
 import Papa from "papaparse";
@@ -529,7 +530,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!vehicle) {
         return res.status(404).json({ message: "Vehicle not found" });
       }
-      res.json(vehicle);
+
+      let profitabilityBadge: 'Profitable' | 'Break-even' | 'Negative' | null = null;
+      
+      try {
+        const latestValuation = await storage.getLatestValuation(req.params.id);
+        const latestFxRate = await storage.getLatestFxRate('USD', 'HNL');
+        
+        if (latestValuation && latestFxRate) {
+          const allCosts = await storage.listCosts();
+          const allShipments = await storage.listShipments();
+          const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+          const vehicleTotalCosts = calculateVehicleTotalCosts([vehicle], allCosts, allShipments);
+          
+          const landedCostUsd = vehicleTotalCosts.get(vehicle.id);
+          
+          if (landedCostUsd && landedCostUsd > 0) {
+            const hondurasEstPriceHnl = Number(latestValuation.hondurasEstPriceHnl);
+            const fxRate = Number(latestFxRate.rate);
+            const usdPerHnl = 1 / fxRate;
+            const projectedRevenueUsd = hondurasEstPriceHnl * usdPerHnl;
+            const projectedProfitUsd = projectedRevenueUsd - landedCostUsd;
+            
+            if (projectedProfitUsd > 500) {
+              profitabilityBadge = 'Profitable';
+            } else if (projectedProfitUsd >= -500) {
+              profitabilityBadge = 'Break-even';
+            } else {
+              profitabilityBadge = 'Negative';
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error calculating profitability badge:", error);
+      }
+
+      res.json({ ...vehicle, profitabilityBadge });
     } catch (error) {
       console.error("Error fetching vehicle:", error);
       res.status(500).json({ message: "Failed to fetch vehicle" });
@@ -769,6 +805,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Honduras valuation endpoints
+  app.post('/api/vehicles/:id/valuation', isAuthenticated, async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.id);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      const userId = (req as any).user.claims.sub;
+      const validationSchema = insertValuationSchema.pick({
+        hondurasEstPriceHnl: true,
+        basisText: true,
+      });
+
+      const validated = validationSchema.parse(req.body);
+      
+      const valuation = await storage.createValuation({
+        vehicleId: req.params.id,
+        authorUserId: userId,
+        hondurasEstPriceHnl: validated.hondurasEstPriceHnl,
+        basisText: validated.basisText || null,
+      });
+
+      res.status(201).json(valuation);
+    } catch (error: any) {
+      console.error("Error creating valuation:", error);
+      res.status(400).json({ message: error.message || "Failed to create valuation" });
+    }
+  });
+
+  app.get('/api/vehicles/:id/valuations', isAuthenticated, async (req, res) => {
+    try {
+      const valuations = await storage.listValuationsByVehicle(req.params.id);
+      res.json(valuations);
+    } catch (error) {
+      console.error("Error fetching valuations:", error);
+      res.status(500).json({ message: "Failed to fetch valuations" });
+    }
+  });
+
+  app.get('/api/vehicles/:id/profitability', isAuthenticated, async (req, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.id);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      const latestValuation = await storage.getLatestValuation(req.params.id);
+      if (!latestValuation) {
+        return res.status(404).json({ message: "No valuation found for this vehicle" });
+      }
+
+      const latestFxRate = await storage.getLatestFxRate('USD', 'HNL');
+      if (!latestFxRate) {
+        return res.status(400).json({ message: "No FX rate available. Please add USD to HNL exchange rate first." });
+      }
+
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
+      
+      const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+      const vehicleTotalCosts = calculateVehicleTotalCosts([vehicle], allCosts, allShipments);
+      
+      const landedCostUsd = vehicleTotalCosts.get(vehicle.id);
+      
+      if (!landedCostUsd || landedCostUsd === 0) {
+        return res.status(422).json({ 
+          message: "Cannot calculate profitability: vehicle has no cost data. Please ensure purchase price and associated costs are recorded." 
+        });
+      }
+      
+      const hondurasEstPriceHnl = Number(latestValuation.hondurasEstPriceHnl);
+      const fxRate = Number(latestFxRate.rate);
+      
+      const usdPerHnl = 1 / fxRate;
+      const projectedRevenueUsd = hondurasEstPriceHnl * usdPerHnl;
+      const projectedProfitUsd = projectedRevenueUsd - landedCostUsd;
+      
+      let badge: 'Profitable' | 'Break-even' | 'Negative';
+      if (projectedProfitUsd > 500) {
+        badge = 'Profitable';
+      } else if (projectedProfitUsd >= -500) {
+        badge = 'Break-even';
+      } else {
+        badge = 'Negative';
+      }
+
+      res.json({
+        vehicleId: vehicle.id,
+        landedCostUsd: landedCostUsd.toFixed(2),
+        hondurasEstPriceHnl: hondurasEstPriceHnl.toFixed(2),
+        fxRate: fxRate.toFixed(4),
+        fxRateDate: latestFxRate.asOf,
+        projectedRevenueUsd: projectedRevenueUsd.toFixed(2),
+        projectedProfitUsd: projectedProfitUsd.toFixed(2),
+        profitabilityBadge: badge,
+        valuationId: latestValuation.id,
+        valuationDate: latestValuation.createdAt,
+      });
+    } catch (error) {
+      console.error("Error calculating profitability:", error);
+      res.status(500).json({ message: "Failed to calculate profitability" });
+    }
+  });
+
   app.post('/api/vehicles/bulk-import', isAuthenticated, async (req, res) => {
     try {
       const { vehicles } = req.body;
@@ -865,9 +1006,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const importRecord = await storage.createDealerCenterImport({
         fileName: file.originalname,
         uploadedBy: userId,
-        totalRows,
-        successRows: 0,
-        errorRows: 0,
+        rowCount: totalRows,
+        successCount: 0,
+        errorCount: 0,
         status: 'processing',
         errors: null
       });
@@ -942,8 +1083,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateDealerCenterImport(importRecord.id, {
-        successRows: createdVehicles.length,
-        errorRows: rowErrors.length,
+        successCount: createdVehicles.length,
+        errorCount: rowErrors.length,
         status: rowErrors.length === totalRows ? 'failed' : rowErrors.length > 0 ? 'partial' : 'completed',
         errors: rowErrors.length > 0 ? rowErrors as any : null
       });

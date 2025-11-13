@@ -1,0 +1,209 @@
+You’re cooking. You’ve got schema extensions + DealerCenter import live. Now lock this in with hard, testable wins so EZER Ops is usable today.
+
+# What to do next (in order)
+
+## 1) Prove the CSV import end-to-end
+
+Run these right now to sanity-check the new importer and storage methods.
+
+**Sample `dealercenter.csv` (minimal, good + bad rows):**
+
+```
+VIN,Year,Make,Model,Trim,Odometer,Cost,Reconditioning,Lot,Status,Asking Price,Exterior Color,Interior Color,Purchase Date,Purchase Source
+1N4AL3AP4GC123456,2016,Nissan,Altima,SV,112345,$5,400,250,Omaha,In Stock,7995,Gray,Black,2025-10-02,Manheim
+3FA6P0H73HR123457,2017,Ford,Fusion,SE,96500, 4300 , ,Denver,Acquired,6995,White,Beige,2025-09-14,Private Seller
+5YJSA1E26HF123458,2017,Tesla,Model S,75D,68000,$24,900,2,100,Omaha,In Stock,38995,Black,Black,2025-08-20,Dealer Trade
+BADVIN,2012,Dodge,Ram 1500,SLT,150000,7200,600,Denver,In Stock,12995,Red,Gray,2025-07-11,Manheim
+1N4AL3AP4GC123456,2016,Nissan,Altima,SV,112345,$5,400,250,Omaha,In Stock,7995,Gray,Black,2025-10-02,Duplicate Test
+```
+
+**cURL (adjust route if different):**
+
+```bash
+curl -X POST http://localhost:5000/dealercenter/import \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -F "file=@dealercenter.csv"
+```
+
+**Acceptance criteria:**
+
+* Good rows insert; duplicate VIN + BADVIN row show row-level errors in response.
+* Purchases & recon costs create ledger entries (unlocked).
+* VIN uniqueness enforced per tenant.
+
+If that passes, your import pipeline is production-ready.
+
+---
+
+## 2) Lock status transitions + checklists (enforcement)
+
+You already modeled the gates—now enforce them at the API layer.
+
+**Vehicle gates (return 409 + error detail if violated):**
+
+* `Acquired → In Transit` requires: Bill of Sale (doc), Title uploaded, Title type ∈ {CLEAN, SALVAGE}, ≥6 photos.
+* `Under Contract → Sold` requires: signed sales contract (audit present), sale price + FX snapshot if HNL.
+
+**Shipment gates:**
+
+* `Planned → In Ground Transit` requires ≥1 compliant vehicle.
+* `At Port (US) → On Vessel` requires Bill of Lading uploaded.
+* `Customs → Released/Completed` requires customs record with duties + fees.
+
+Implement as a small guard in your routes, e.g.:
+
+```ts
+// pseudo
+assertHasDocs(vehicleId, ["bill_of_sale","title_scan","min_photos:6"]);
+assertEnum(vehicle.title_type, ["CLEAN","SALVAGE"]);
+```
+
+---
+
+## 3) Honduras valuation + profitability badge
+
+Wire the valuation flow so Tony can sanity-check exports.
+
+**Endpoints:**
+
+* `POST /vehicles/:id/valuation { honduras_est_price_hnl, basis_text }`
+* `GET /vehicles/:id` returns `profitability_badge: "Profitable"|"Break-even"|"Negative"`
+
+**Computation (snapshot FX):**
+
+```
+proj_revenue_usd = honduras_est_price_hnl / fx_rate
+landed_cost_usd  = purchase + recon + allocated_shipment + est_customs_usd + handling_usd
+proj_profit_usd  = proj_revenue_usd - landed_cost_usd
+badge = >$500 ⇒ Profitable; between -$500..$500 ⇒ Break-even; else Negative
+```
+
+Seed 2–3 valuations and verify badge + sorting filters.
+
+---
+
+## 4) Leaderboards (Sales, Procurement, Logistics)
+
+Add three simple queries + routes:
+
+**Sales (Omaha):** `/leaderboards/sales?from&to`
+
+* Units sold
+* Gross profit per unit (sale − landed_cost)
+* Total gross profit
+
+**Procurement (Denver):** `/leaderboards/procurement?from&to`
+
+* Acquisition spread: `target_sale_usd − (purchase + recon + alloc)`
+* % of acquisitions that hit profitability badge=Profitable
+* Avg days-to-list
+
+**Logistics (Roatán):** `/leaderboards/logistics?from&to`
+
+* Avg customs clearance time (Customs Submitted → Cleared)
+* Shipments with complete docs on first pass (%)
+* Turnover days (Arrival → Sale)
+
+Pseudo-SQL for Sales:
+
+```sql
+SELECT u.name, COUNT(*) AS units,
+       AVG(sale_price_usd - landed_cost_usd) AS avg_gppu,
+       SUM(sale_price_usd - landed_cost_usd) AS total_gp
+FROM vehicle_sales vs
+JOIN users u ON vs.sold_by = u.id
+WHERE vs.sold_at BETWEEN $from AND $to AND vs.tenant_id = $tenant
+GROUP BY u.name
+ORDER BY total_gp DESC;
+```
+
+---
+
+## 5) Customs (Roatán) module wired to shipments
+
+**Endpoints:**
+
+* `POST /customs/{shipment_id}/submit { broker_id, docs[], declared_value_hnl }`
+* `PATCH /customs/{id}/assess { duties_hnl, fees_hnl }`
+* `PATCH /customs/{id}/clear`
+
+**Side-effects:**
+
+* On `clear`: write locked ledger lines for duties/fees (converted to USD snapshot); unlock “Release to Lot.”
+
+---
+
+## 6) Partner directory + doc templates (Royal Shipping, truckers, broker)
+
+* Seed `partners` with: Royal Shipping, Default Trucker, Roatán Broker.
+* In shipment detail, “Generate doc checklist” button creates empty doc placeholders:
+
+  * BOL, booking confirmation, trucker packet (pickup order, gate pass, insurance, driver ID).
+* Upload enforces MIME + size; store signed URLs in `documents_json`.
+
+---
+
+## 7) FX + currency hygiene (nightly job)
+
+* Nightly cron: refresh USD↔HNL to `fx_rates(as_of)`.
+* Store **snapshots** on sale & customs to avoid retroactive changes.
+* UI: badge if FX older than 48h.
+
+---
+
+## 8) Payouts & reinvestment threshold (ledger-driven)
+
+On sale close:
+
+* Compute profit from **ledger** only (not recomputing ad-hoc).
+* If reinvested_total < 150k → create payouts 60/20/20 (with 60% tagged `Reinvestment`).
+* Else 50/50.
+* Add `/finance/reinvestment` showing progress and last ten distributions.
+
+---
+
+# Quick test checklist (copy/paste)
+
+* [ ] Import `dealercenter.csv` → 3 rows OK, 2 errors reported with line numbers.
+* [ ] Create shipment; attach 2 compliant vehicles; attempt to move `Planned→On Vessel` **fails** until BOL present.
+* [ ] Add valuation to a vehicle → badge shows “Profitable”; list filters by `profitable_for_honduras=true`.
+* [ ] Close a sale (USD) → payouts created, reinvestment progress updated; ledger totals reconcile.
+* [ ] Customs flow: submit → assess → clear; locked ledger entries created for duties/fees.
+* [ ] Leaderboards endpoints return non-empty results sorted correctly.
+
+---
+
+# Small UX tasks that pay big
+
+* Row-level CSV error table with **Download errors** button (CSV/JSON).
+* Status chips + checklist progress bars on Vehicle/Shipment cards.
+* “Docs required” side-panel that turns green as uploads complete.
+* Leaderboards with date presets (MTD/QTD/YTD/Custom).
+
+---
+
+# One-liner prompts you can feed your Replit agent now
+
+**Enforce gates + checklists**
+
+> Add guards in server/routes.ts so vehicle/shipment/customs status transitions validate required docs and title type (no REBUILT). Return 409 with a clear JSON error array when rules fail.
+
+**Valuation + profitability**
+
+> Implement `/vehicles/:id/valuation` and compute profitability badges using fx snapshot. Expose filters `?profitable_for_honduras=true`.
+
+**Leaderboards**
+
+> Add `/leaderboards/sales`, `/leaderboards/procurement`, `/leaderboards/logistics` with the metrics listed, date filters, and descending sort by the primary KPI.
+
+**Customs module**
+
+> Implement customs submit/assess/clear endpoints, write locked ledger entries for duties/fees at clear, and unlock Release to Lot.
+
+**Document checklist UI**
+
+> In the vehicle and shipment detail pages, add a checklist component that reads required docs from config, shows completion %, and blocks transitions via the new guards.
+
+---
+
+You’ve got momentum. Ship the four features above (gates, valuation, leaderboards, customs), and the platform goes from “great data model” to “daily-driver OS.” If you want, I can draft the exact JSON contract for each new endpoint’s request/response to drop into your routes right now.
