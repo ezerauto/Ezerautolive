@@ -18,8 +18,48 @@ import {
   insertWorkflowPhaseSchema,
   insertPhaseDocumentSchema
 } from "@shared/schema";
+import { createHash } from "crypto";
 
 const GOAL_AMOUNT = 150000;
+
+// Rate limiting for DOB verification (prevents guessing attacks)
+const dobVerificationAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_DOB_ATTEMPTS = 3;
+const DOB_RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+function checkDobRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const attempts = dobVerificationAttempts.get(userId);
+  
+  if (!attempts || now > attempts.resetAt) {
+    dobVerificationAttempts.set(userId, { count: 1, resetAt: now + DOB_RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (attempts.count >= MAX_DOB_ATTEMPTS) {
+    return false;
+  }
+  
+  attempts.count++;
+  return true;
+}
+
+function resetDobRateLimit(userId: string): void {
+  dobVerificationAttempts.delete(userId);
+}
+
+// Helper to normalize DOB to date only (remove time component)
+function normalizeDob(date: Date | null): string | null {
+  if (!date) return null;
+  const d = new Date(date);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+// Helper to create document hash for signature integrity
+function createDocumentHash(contractId: string, typedName: string): string {
+  const data = `${contractId}:${typedName}:${Date.now()}`;
+  return createHash('sha256').update(data).digest('hex');
+}
 
 // Helper function to calculate business days
 function addBusinessDays(date: Date, days: number): Date {
@@ -847,6 +887,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating contract:", error);
       res.status(400).json({ message: error.message || "Failed to create contract" });
+    }
+  });
+
+  app.get('/api/contracts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const contract = await storage.getContractWithSignatures(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      res.json(contract);
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+      res.status(500).json({ message: "Failed to fetch contract" });
+    }
+  });
+
+  app.get('/api/contracts/:id/signatures', isAuthenticated, async (req, res) => {
+    try {
+      const signatures = await storage.listContractSignatures(req.params.id);
+      res.json(signatures);
+    } catch (error) {
+      console.error("Error fetching signatures:", error);
+      res.status(500).json({ message: "Failed to fetch signatures" });
+    }
+  });
+
+  app.post('/api/contracts/:id/sign', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const contractId = req.params.id;
+      
+      // Validate request body
+      const signSchema = z.object({
+        dobInput: z.string().min(1, "Date of birth is required"),
+        typedName: z.string().min(1, "Typed name is required"),
+      });
+      
+      const { dobInput, typedName } = signSchema.parse(req.body);
+      
+      // Check rate limit
+      if (!checkDobRateLimit(userId)) {
+        return res.status(429).json({ 
+          message: "Too many verification attempts. Please try again in 15 minutes." 
+        });
+      }
+      
+      // Get contract with signatures
+      const contract = await storage.getContractWithSignatures(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      // Check if user already signed
+      const hasAlreadySigned = await storage.hasUserSigned(contractId, userId);
+      if (hasAlreadySigned) {
+        return res.status(400).json({ message: "You have already signed this contract" });
+      }
+      
+      // Check if user is a required signer
+      const requiredSigner = contract.requiredSigners.find(s => s.userId === userId);
+      if (!requiredSigner) {
+        return res.status(403).json({ message: "You are not authorized to sign this contract" });
+      }
+      
+      // Get user and verify DOB
+      const user = await storage.getUser(userId);
+      if (!user || !user.dateOfBirth) {
+        return res.status(400).json({ message: "User date of birth not found in system" });
+      }
+      
+      // Normalize both DOBs to date only (YYYY-MM-DD format) to avoid timezone issues
+      const userDobNormalized = normalizeDob(user.dateOfBirth);
+      const inputDobNormalized = normalizeDob(new Date(dobInput));
+      
+      if (userDobNormalized !== inputDobNormalized) {
+        return res.status(401).json({ 
+          message: "Date of birth verification failed. Please enter your correct date of birth." 
+        });
+      }
+      
+      // DOB verified successfully - reset rate limit
+      resetDobRateLimit(userId);
+      
+      // Get IP address from request
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
+                       req.connection.remoteAddress || 
+                       'unknown';
+      
+      // Create document hash for integrity
+      const documentHash = createDocumentHash(contractId, typedName);
+      
+      // Create signature record
+      const signature = await storage.createContractSignature({
+        contractId,
+        userId,
+        dobVerified: true,
+        ipAddress,
+        userAgent: req.headers['user-agent'] || 'unknown',
+        documentHash,
+        typedName,
+      });
+      
+      // Update required signer record
+      await storage.updateRequiredSignerSignedAt(contractId, userId, new Date());
+      
+      // Check if all required signers have signed
+      const updatedContract = await storage.getContractWithSignatures(contractId);
+      if (updatedContract) {
+        const allSigned = updatedContract.requiredSigners.every(s => s.signedAt !== null);
+        
+        if (allSigned) {
+          // All parties have signed - update contract status
+          await storage.updateContract(contractId, {
+            signatureStatus: 'completed',
+            fullySignedAt: new Date(),
+            status: 'active',
+          });
+        } else {
+          // Some signatures pending - update to in_progress
+          await storage.updateContract(contractId, {
+            signatureStatus: 'in_progress',
+          });
+        }
+      }
+      
+      res.status(201).json({ 
+        message: "Contract signed successfully",
+        signature 
+      });
+    } catch (error: any) {
+      console.error("Error signing contract:", error);
+      res.status(400).json({ message: error.message || "Failed to sign contract" });
     }
   });
 

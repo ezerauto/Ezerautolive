@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,27 +82,28 @@ export default function Contracts() {
                   const statusInfo = statusConfig[contract.status as keyof typeof statusConfig];
                   const StatusIcon = statusInfo.icon;
                   return (
-                    <div
-                      key={contract.id}
-                      className="p-4 rounded-lg border border-border hover-elevate"
-                      data-testid={`contract-${contract.id}`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold">{contract.title}</h4>
-                        <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {new Date(contract.contractDate).toLocaleDateString()}
-                      </p>
-                      {contract.parties && contract.parties.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Parties: {contract.parties.join(", ")}
+                    <Link key={contract.id} href={`/contracts/${contract.id}`}>
+                      <div
+                        className="p-4 rounded-lg border border-border hover-elevate cursor-pointer"
+                        data-testid={`contract-${contract.id}`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold">{contract.title}</h4>
+                          <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {new Date(contract.contractDate).toLocaleDateString()}
                         </p>
-                      )}
-                    </div>
+                        {contract.parties && contract.parties.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Parties: {contract.parties.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
                   );
                 })}
               </div>

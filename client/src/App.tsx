@@ -16,6 +16,7 @@ import ShipmentDetail from "@/pages/shipment-detail";
 import Inventory from "@/pages/inventory";
 import VehicleDetail from "@/pages/vehicle-detail";
 import Contracts from "@/pages/contracts";
+import ContractDetail from "@/pages/contract-detail";
 import Financials from "@/pages/financials";
 import Payments from "@/pages/payments";
 import Costs from "@/pages/costs";
@@ -72,6 +73,7 @@ function Router() {
               <Route path="/shipments" component={Shipments} />
               <Route path="/inventory/:id" component={VehicleDetail} />
               <Route path="/inventory" component={Inventory} />
+              <Route path="/contracts/:id" component={ContractDetail} />
               <Route path="/contracts" component={Contracts} />
               <Route path="/financials" component={Financials} />
               <Route path="/payments" component={Payments} />
