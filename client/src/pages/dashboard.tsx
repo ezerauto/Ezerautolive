@@ -74,7 +74,7 @@ export default function Dashboard() {
         data-testid="button-location-all"
       >
         <Globe className="h-3 w-3" />
-        All Locations
+        All Markets
       </Button>
       <Button
         variant={location === 'roatan' ? 'default' : 'outline'}
@@ -84,7 +84,7 @@ export default function Dashboard() {
         data-testid="button-location-roatan"
       >
         <MapPin className="h-3 w-3" />
-        Roatán
+        Honduras Market
       </Button>
       <Button
         variant={location === 'omaha' ? 'default' : 'outline'}
@@ -94,7 +94,7 @@ export default function Dashboard() {
         data-testid="button-location-omaha"
       >
         <MapPin className="h-3 w-3" />
-        Omaha
+        Omaha Market
       </Button>
     </div>
   );
