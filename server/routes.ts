@@ -532,40 +532,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let profitabilityBadge: 'Profitable' | 'Break-even' | 'Negative' | null = null;
+      let costDataCompleteness: 'none' | 'partial' | 'complete' = 'none';
       
       try {
         const latestValuation = await storage.getLatestValuation(req.params.id);
         const latestFxRate = await storage.getLatestFxRate('USD', 'HNL');
         
-        if (latestValuation && latestFxRate) {
-          const allCosts = await storage.listCosts();
-          const allShipments = await storage.listShipments();
-          const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
-          const vehicleTotalCosts = calculateVehicleTotalCosts([vehicle], allCosts, allShipments);
+        const allVehicles = await storage.listVehicles();
+        const allCosts = await storage.listCosts();
+        const allShipments = await storage.listShipments();
+        const { calculateVehicleTotalCosts, hasCompleteLandedCost, getCostDataCompleteness } = await import('./services/costCalculation');
+        
+        // Always provide cost data completeness indicator
+        costDataCompleteness = getCostDataCompleteness(vehicle.id, allVehicles, allCosts, allShipments);
+        
+        // Only calculate badge if vehicle has complete landed cost data AND valuation/FX
+        if (latestValuation && latestFxRate && hasCompleteLandedCost(vehicle.id, allVehicles, allCosts, allShipments)) {
+          const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
+          const landedCostUsd = vehicleTotalCosts.get(vehicle.id) || 0;
           
-          const landedCostUsd = vehicleTotalCosts.get(vehicle.id);
+          const hondurasEstPriceHnl = Number(latestValuation.hondurasEstPriceHnl);
+          const fxRate = Number(latestFxRate.rate);
+          const usdPerHnl = 1 / fxRate;
+          const projectedRevenueUsd = hondurasEstPriceHnl * usdPerHnl;
+          const projectedProfitUsd = projectedRevenueUsd - landedCostUsd;
           
-          if (landedCostUsd && landedCostUsd > 0) {
-            const hondurasEstPriceHnl = Number(latestValuation.hondurasEstPriceHnl);
-            const fxRate = Number(latestFxRate.rate);
-            const usdPerHnl = 1 / fxRate;
-            const projectedRevenueUsd = hondurasEstPriceHnl * usdPerHnl;
-            const projectedProfitUsd = projectedRevenueUsd - landedCostUsd;
-            
-            if (projectedProfitUsd > 500) {
-              profitabilityBadge = 'Profitable';
-            } else if (projectedProfitUsd >= -500) {
-              profitabilityBadge = 'Break-even';
-            } else {
-              profitabilityBadge = 'Negative';
-            }
+          if (projectedProfitUsd > 500) {
+            profitabilityBadge = 'Profitable';
+          } else if (projectedProfitUsd >= -500) {
+            profitabilityBadge = 'Break-even';
+          } else {
+            profitabilityBadge = 'Negative';
           }
         }
       } catch (error) {
         console.error("Error calculating profitability badge:", error);
       }
 
-      res.json({ ...vehicle, profitabilityBadge });
+      res.json({ ...vehicle, profitabilityBadge, costDataCompleteness });
     } catch (error) {
       console.error("Error fetching vehicle:", error);
       res.status(500).json({ message: "Failed to fetch vehicle" });
@@ -575,6 +579,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/vehicles/:id', isAuthenticated, async (req, res) => {
     try {
       const updates = req.body;
+      
+      // Normalize status to canonical values for consistent storage
+      if (updates.status) {
+        updates.status = updates.status.trim().toLowerCase().replace(/\s+/g, '_');
+        
+        // Validate against VehicleStatus enum
+        const validStatuses = ['acquired', 'in_transit', 'in_stock', 'sold'];
+        if (!validStatuses.includes(updates.status)) {
+          return res.status(400).json({
+            message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+            code: "INVALID_STATUS"
+          });
+        }
+      }
+      
+      // EZER Auto Export Checklist: Enforce requirements for Acquired → In Transit
+      if (updates.status === 'in_transit') {
+        const vehicle = await storage.getVehicle(req.params.id);
+        if (!vehicle) {
+          return res.status(404).json({ message: "Vehicle not found" });
+        }
+        
+        // Normalize existing vehicle status for comparison
+        const currentStatus = vehicle.status?.trim().toLowerCase().replace(/\s+/g, '_');
+        
+        // Only enforce export checklist if transitioning FROM "acquired" status
+        if (currentStatus === 'acquired') {
+          const violations: string[] = [];
+          
+          // 1. Bill of sale required
+          if (!vehicle.billOfSaleUrl && !updates.billOfSaleUrl) {
+            violations.push("Bill of sale document is required for export");
+          }
+          
+          // 2. Title document required
+          if (!vehicle.titleUrl && !updates.titleUrl) {
+            violations.push("Title document is required for export");
+          }
+          
+          // 3. Title type must be clean or salvage (NOT rebuilt)
+          const titleStatus = updates.titleStatus || vehicle.titleStatus;
+          if (!titleStatus) {
+            violations.push("Title type is required for export");
+          } else if (titleStatus.toLowerCase() === 'rebuilt') {
+            violations.push("Rebuilt title vehicles cannot be exported. Only clean or salvage titles are allowed");
+          } else if (!['clean', 'salvage'].includes(titleStatus.toLowerCase())) {
+            violations.push("Title type must be 'clean' or 'salvage' for export");
+          }
+          
+          // 4. Minimum 6 photos required
+          const photoUrls = updates.photoUrls || vehicle.photoUrls || [];
+          if (photoUrls.length < 6) {
+            violations.push(`Minimum 6 photos required for export (currently ${photoUrls.length})`);
+          }
+          
+          if (violations.length > 0) {
+            return res.status(422).json({
+              message: "Export checklist incomplete",
+              code: "EXPORT_CHECKLIST_INCOMPLETE",
+              violations: violations
+            });
+          }
+        }
+      }
       
       // If attempting to mark vehicle as sold, validate sales contract exists
       if (updates.status === 'sold') {
@@ -852,29 +920,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Vehicle not found" });
       }
 
+      const allVehicles = await storage.listVehicles();
+      const allCosts = await storage.listCosts();
+      const allShipments = await storage.listShipments();
+      
+      const { calculateVehicleTotalCosts, hasCompleteLandedCost } = await import('./services/costCalculation');
+      
+      // Check for complete landed cost data FIRST
+      if (!hasCompleteLandedCost(vehicle.id, allVehicles, allCosts, allShipments)) {
+        return res.status(422).json({ 
+          message: "Cannot calculate profitability: vehicle has incomplete cost data. Please ensure vehicle has purchase price, recon costs, shipment assignment, and shipment-level costs." 
+        });
+      }
+
       const latestValuation = await storage.getLatestValuation(req.params.id);
       if (!latestValuation) {
-        return res.status(404).json({ message: "No valuation found for this vehicle" });
+        return res.status(404).json({ message: "No valuation found for this vehicle. Please add a Honduras market valuation first." });
       }
 
       const latestFxRate = await storage.getLatestFxRate('USD', 'HNL');
       if (!latestFxRate) {
         return res.status(400).json({ message: "No FX rate available. Please add USD to HNL exchange rate first." });
       }
-
-      const allCosts = await storage.listCosts();
-      const allShipments = await storage.listShipments();
       
-      const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
-      const vehicleTotalCosts = calculateVehicleTotalCosts([vehicle], allCosts, allShipments);
-      
-      const landedCostUsd = vehicleTotalCosts.get(vehicle.id);
-      
-      if (!landedCostUsd || landedCostUsd === 0) {
-        return res.status(422).json({ 
-          message: "Cannot calculate profitability: vehicle has no cost data. Please ensure purchase price and associated costs are recorded." 
-        });
-      }
+      const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
+      const landedCostUsd = vehicleTotalCosts.get(vehicle.id) || 0;
       
       const hondurasEstPriceHnl = Number(latestValuation.hondurasEstPriceHnl);
       const fxRate = Number(latestFxRate.rate);

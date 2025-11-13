@@ -101,7 +101,7 @@ export const vehicles = pgTable("vehicles", {
   titleStatus: varchar("title_status", { length: 50 }),
   titleUrl: text("title_url"),
   photoUrls: text("photo_urls").array(),
-  status: varchar("status", { length: 50 }).notNull().default('in_transit'),
+  status: varchar("status", { length: 50 }).notNull().default('acquired'),
   targetSalePrice: decimal("target_sale_price", { precision: 10, scale: 2 }),
   targetSalePriceHnl: decimal("target_sale_price_hnl", { precision: 10, scale: 2 }),
   minimumPrice: decimal("minimum_price", { precision: 10, scale: 2 }),
@@ -148,6 +148,7 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   targetSalePrice: optionalDecimal,
   minimumPrice: optionalDecimal,
   actualSalePrice: optionalDecimal,
+  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold']).optional().default('acquired'),
 });
 
 export const bulkImportVehicleSchema = z.object({
@@ -160,7 +161,7 @@ export const bulkImportVehicleSchema = z.object({
   reconCost: z.string().or(z.number()).transform(val => val ? String(val) : '0'),
   purchaseDate: z.coerce.date().optional().default(() => new Date()),
   targetSalePrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
-  status: z.string().optional().default('in_stock'),
+  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold']).optional().default('acquired'),
   shipmentId: z.string().nullable().optional(),
   odometer: z.number().int().nullable().optional(),
   color: z.string().optional().nullable(),
@@ -753,7 +754,7 @@ export type CustomsClearance = typeof customsClearance.$inferSelect;
 
 // Status types
 export type ShipmentStatus = 'in_transit' | 'arrived' | 'customs_cleared' | 'completed';
-export type VehicleStatus = 'in_transit' | 'in_stock' | 'sold';
+export type VehicleStatus = 'acquired' | 'in_transit' | 'in_stock' | 'sold';
 export type PaymentStatus = 'pending' | 'paid' | 'overdue';
 export type ContractStatus = 'active' | 'pending' | 'completed';
 export type CostCategory = 'vehicle_purchase' | 'ground_transport_denver_florida' | 'customs_broker' | 'ocean_freight' | 'importer_registration' | 'bill_of_sale' | 'bill_of_lading' | 'other';
