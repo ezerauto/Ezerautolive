@@ -239,9 +239,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateVehicle(id: string, updates: any): Promise<Vehicle> {
+    // Filter out undefined values to prevent null constraint violations
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+    
     const [vehicle] = await db
       .update(vehicles)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...filteredUpdates, updatedAt: new Date() })
       .where(eq(vehicles.id, id))
       .returning();
     return vehicle;
