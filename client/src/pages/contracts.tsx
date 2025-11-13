@@ -11,7 +11,14 @@ import type { Contract } from "@shared/schema";
 const statusConfig = {
   active: { label: "Active", icon: CheckCircle2, color: "bg-success/10 text-success" },
   pending: { label: "Pending", icon: Clock, color: "bg-warning/10 text-warning" },
+  draft: { label: "Draft", icon: File, color: "bg-muted/10 text-muted-foreground" },
   completed: { label: "Completed", icon: CheckCircle2, color: "bg-muted/50 text-muted-foreground" },
+};
+
+const signatureStatusConfig = {
+  pending: { label: "Awaiting Signatures", icon: Clock, color: "bg-warning/10 text-warning" },
+  in_progress: { label: "Awaiting Signatures", icon: Clock, color: "bg-yellow-500/10 text-yellow-600" },
+  completed: { label: "Fully Signed", icon: CheckCircle2, color: "bg-green-500/10 text-green-600" },
 };
 
 export default function Contracts() {
@@ -79,7 +86,10 @@ export default function Contracts() {
             ) : (
               <div className="space-y-4">
                 {groupedContracts.partnership.map((contract) => {
-                  const statusInfo = statusConfig[contract.status as keyof typeof statusConfig];
+                  const displaySignatureStatus = contract.requiresSignatures && contract.signatureStatus;
+                  const statusInfo = displaySignatureStatus 
+                    ? signatureStatusConfig[contract.signatureStatus as keyof typeof signatureStatusConfig]
+                    : statusConfig[contract.status as keyof typeof statusConfig];
                   const StatusIcon = statusInfo.icon;
                   return (
                     <Link key={contract.id} href={`/contracts/${contract.id}`}>
