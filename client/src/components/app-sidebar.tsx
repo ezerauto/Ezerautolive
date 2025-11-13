@@ -7,6 +7,8 @@ import {
   Handshake,
   Receipt,
   User,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -33,7 +35,7 @@ const menuItems = [
     testId: "link-dashboard",
   },
   {
-    title: "Operations",
+    title: "Shipments",
     url: "/shipments",
     icon: Truck,
     testId: "link-shipments",
@@ -70,6 +72,21 @@ const menuItems = [
   },
 ];
 
+const ezerMenuItems = [
+  {
+    title: "EZER Auto HQ",
+    url: "/operations",
+    icon: TrendingUp,
+    testId: "link-operations",
+  },
+  {
+    title: "The Network",
+    url: "/partners",
+    icon: Users,
+    testId: "link-partners",
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -96,6 +113,33 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      data-testid={item.testId}
+                    >
+                      <Link href={item.url} className="flex items-center gap-3 px-4 py-3">
+                        <item.icon className="h-5 w-5" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            EZER Auto Operations
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {ezerMenuItems.map((item) => {
                 const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>

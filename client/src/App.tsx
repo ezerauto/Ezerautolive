@@ -20,6 +20,8 @@ import ContractDetail from "@/pages/contract-detail";
 import Financials from "@/pages/financials";
 import Payments from "@/pages/payments";
 import Costs from "@/pages/costs";
+import Operations from "@/pages/operations";
+import Partners from "@/pages/partners";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function Router() {
@@ -78,6 +80,8 @@ function Router() {
               <Route path="/financials" component={Financials} />
               <Route path="/payments" component={Payments} />
               <Route path="/costs" component={Costs} />
+              <Route path="/operations" component={Operations} />
+              <Route path="/partners" component={Partners} />
               <Route component={NotFound} />
             </Switch>
           </main>
