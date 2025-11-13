@@ -2229,10 +2229,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const publicURL = `/objects/${directory}/${objectId}`;
       res.json({ publicURL });
     } catch (error: any) {
-      console.error("Direct upload failed:", error.message);
+      console.error("Direct upload failed:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        errors: error.errors,
+        stack: error.stack
+      });
       res.status(500).json({ 
         error: "Upload failed",
-        message: error.message 
+        message: error.message || "Unknown error",
+        code: error.code,
+        details: error.errors 
       });
     }
   });
