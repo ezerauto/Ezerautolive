@@ -11,6 +11,7 @@ import { ArrowLeft, Car, Truck, Package, CheckCircle2, FileText, AlertCircle } f
 import type { Vehicle, Contract } from "@shared/schema";
 import { EditVehicleDialog } from "@/components/EditVehicleDialog";
 import { VehicleSalesContractDialog } from "@/components/VehicleSalesContractDialog";
+import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
 
 const statusConfig = {
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
@@ -90,10 +91,10 @@ export default function VehicleDetail() {
           </div>
           <div className="flex items-center gap-3">
             <EditVehicleDialog vehicle={vehicle} />
-            <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {statusInfo.label}
-            </Badge>
+            <VehicleStatusDropdown
+              vehicleId={vehicle.id}
+              currentStatus={vehicle.status}
+            />
           </div>
         </div>
 
