@@ -387,6 +387,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customs Clearance routes
+  
+  // POST /api/customs/:shipmentId/submit - Submit customs clearance documents
+  app.post('/api/customs/:shipmentId/submit', isAuthenticated, async (req, res) => {
+    try {
+      const { shipmentId } = req.params;
+      const { brokerId, documents, notes } = req.body;
+      
+      // Check if shipment exists
+      const shipment = await storage.getShipment(shipmentId);
+      if (!shipment) {
+        return res.status(404).json({ message: "Shipment not found" });
+      }
+      
+      // Get latest FX rate for snapshot
+      const fxRate = await storage.getLatestFxRate('USD', 'HNL');
+      
+      // Create or update customs clearance record
+      const clearance = await storage.upsertCustomsClearance(shipmentId, {
+        port: 'Roatán',
+        status: 'documents_submitted',
+        brokerId: brokerId || null,
+        documents: documents || null,
+        fxRateSnapshot: fxRate?.rate?.toString() || null,
+        submittedAt: new Date(),
+        notes: notes || null,
+      });
+      
+      res.json(clearance);
+    } catch (error: any) {
+      console.error("Error submitting customs clearance:", error);
+      res.status(400).json({ message: error.message || "Failed to submit customs clearance" });
+    }
+  });
+
+  // PATCH /api/customs/:id/assess - Assess duties and fees in HNL
+  app.patch('/api/customs/:id/assess', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { dutiesHnl, feesHnl, notes } = req.body;
+      
+      // Get existing clearance
+      const clearance = await storage.getCustomsClearance(id);
+      if (!clearance) {
+        return res.status(404).json({ message: "Customs clearance not found" });
+      }
+      
+      // Validate status transition
+      if (clearance.status !== 'documents_submitted') {
+        return res.status(422).json({
+          message: "Cannot assess duties: Customs clearance must be in 'documents_submitted' status",
+          code: "INVALID_STATUS_TRANSITION",
+          currentStatus: clearance.status,
+          requiredStatus: 'documents_submitted'
+        });
+      }
+      
+      // Update with assessment
+      const updated = await storage.upsertCustomsClearance(clearance.shipmentId, {
+        port: clearance.port,
+        status: 'duties_assessed',
+        brokerId: clearance.brokerId,
+        dutiesHnl: dutiesHnl ? dutiesHnl.toString() : clearance.dutiesHnl,
+        feesHnl: feesHnl ? feesHnl.toString() : clearance.feesHnl,
+        fxRateSnapshot: clearance.fxRateSnapshot,
+        documents: clearance.documents,
+        submittedAt: clearance.submittedAt,
+        notes: notes || clearance.notes,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error assessing customs duties:", error);
+      res.status(400).json({ message: error.message || "Failed to assess customs duties" });
+    }
+  });
+
+  // PATCH /api/customs/:id/clear - Clear customs and lock ledger entries
+  app.patch('/api/customs/:id/clear', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      
+      // Get existing clearance
+      const clearance = await storage.getCustomsClearance(id);
+      if (!clearance) {
+        return res.status(404).json({ message: "Customs clearance not found" });
+      }
+      
+      // Validate status transition
+      if (clearance.status !== 'duties_assessed') {
+        return res.status(422).json({
+          message: "Cannot clear customs: Must be in 'duties_assessed' status",
+          code: "INVALID_STATUS_TRANSITION",
+          currentStatus: clearance.status,
+          requiredStatus: 'duties_assessed'
+        });
+      }
+      
+      // Validate that duties and fees are assessed
+      if (!clearance.dutiesHnl || !clearance.feesHnl) {
+        return res.status(422).json({
+          message: "Cannot clear customs: Duties and fees must be assessed first",
+          code: "ASSESSMENT_INCOMPLETE",
+          violations: [
+            ...(!clearance.dutiesHnl ? ["Duties (HNL) not assessed"] : []),
+            ...(!clearance.feesHnl ? ["Fees (HNL) not assessed"] : [])
+          ]
+        });
+      }
+      
+      // Lock all costs (ledger entries) for this shipment
+      const { lockShipmentCosts } = await import('./services/costLocking');
+      await lockShipmentCosts(clearance.shipmentId);
+      
+      // Update to cleared status
+      const updated = await storage.upsertCustomsClearance(clearance.shipmentId, {
+        port: clearance.port,
+        status: 'cleared',
+        brokerId: clearance.brokerId,
+        dutiesHnl: clearance.dutiesHnl,
+        feesHnl: clearance.feesHnl,
+        fxRateSnapshot: clearance.fxRateSnapshot,
+        documents: clearance.documents,
+        submittedAt: clearance.submittedAt,
+        clearedAt: new Date(),
+        notes: notes || clearance.notes,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error clearing customs:", error);
+      res.status(400).json({ message: error.message || "Failed to clear customs" });
+    }
+  });
+
   // Shipment contract routes
   app.get('/api/shipments/:shipmentId/vehicles', isAuthenticated, async (req, res) => {
     try {
@@ -1638,6 +1774,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(cost);
     } catch (error: any) {
       console.error("Error creating cost:", error);
+      
+      // Handle locked cost errors with 422 status
+      if (error.message?.includes('COST_LOCKED:')) {
+        return res.status(422).json({
+          message: error.message.split('COST_LOCKED: ')[1] || error.message,
+          code: 'COST_LOCKED'
+        });
+      }
+      if (error.message?.includes('SHIPMENT_CLEARED:')) {
+        return res.status(422).json({
+          message: error.message.split('SHIPMENT_CLEARED: ')[1] || error.message,
+          code: 'SHIPMENT_CLEARED'
+        });
+      }
+      
       res.status(400).json({ message: error.message || "Failed to create cost" });
     }
   });
@@ -1653,6 +1804,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (cost.source === 'auto_shipment') {
         return res.status(400).json({ 
           message: "Cannot delete auto-generated costs. Edit the shipment to adjust operation costs." 
+        });
+      }
+
+      // Prevent deletion of locked costs (customs cleared)
+      if (cost.locked) {
+        return res.status(422).json({
+          message: "Cannot delete locked cost. This shipment's customs have been cleared and ledger entries are locked.",
+          code: "COST_LOCKED"
         });
       }
 

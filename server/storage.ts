@@ -175,6 +175,7 @@ export interface IStorage {
   
   // Customs Clearance operations
   upsertCustomsClearance(shipmentId: string, data: Omit<InsertCustomsClearance, 'shipmentId'>): Promise<CustomsClearance>;
+  getCustomsClearance(id: string): Promise<CustomsClearance | undefined>;
   getCustomsClearanceByShipment(shipmentId: string): Promise<CustomsClearance | undefined>;
   listCustomsClearance(filter?: { status?: string; port?: string }): Promise<CustomsClearance[]>;
   deleteCustomsClearance(id: string): Promise<void>;
@@ -455,7 +456,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Cost operations
+  
+  /**
+   * Assert that a cost can be mutated. Throws error if cost is locked or shipment is cleared.
+   * @param costId - Optional cost ID to check if already locked
+   * @param shipmentId - Optional shipment ID to check if customs cleared
+   */
+  private async assertCostMutable(costId?: string, shipmentId?: string): Promise<void> {
+    // Check if cost is already locked
+    if (costId) {
+      const [cost] = await db.select({ locked: costs.locked }).from(costs).where(eq(costs.id, costId));
+      if (cost?.locked) {
+        throw new Error("COST_LOCKED: Cannot modify locked cost. This shipment's customs have been cleared.");
+      }
+    }
+    
+    // Check if shipment has cleared customs
+    if (shipmentId) {
+      const [clearance] = await db.select({ status: customsClearance.status })
+        .from(customsClearance)
+        .where(eq(customsClearance.shipmentId, shipmentId));
+      if (clearance?.status === 'cleared') {
+        throw new Error("SHIPMENT_CLEARED: Cannot add/modify costs for a customs-cleared shipment.");
+      }
+    }
+  }
+  
   async createCost(costData: InsertCost): Promise<Cost> {
+    // Prevent creating costs for cleared shipments
+    if (costData.shipmentId) {
+      await this.assertCostMutable(undefined, costData.shipmentId);
+    }
     const [cost] = await db.insert(costs).values(costData).returning();
     return cost;
   }
@@ -476,6 +507,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCost(id: string, updates: Partial<InsertCost>): Promise<Cost> {
+    // Prevent updating locked costs
+    await this.assertCostMutable(id);
     const [cost] = await db
       .update(costs)
       .set({ ...updates, updatedAt: new Date() })
@@ -830,6 +863,11 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    return clearance;
+  }
+
+  async getCustomsClearance(id: string): Promise<CustomsClearance | undefined> {
+    const [clearance] = await db.select().from(customsClearance).where(eq(customsClearance.id, id));
     return clearance;
   }
 

@@ -354,6 +354,7 @@ export const costs = pgTable("costs", {
   receiptUrl: text("receipt_url"),
   notes: text("notes"),
   source: varchar("source", { length: 50 }).notNull().default('manual'),
+  locked: boolean("locked").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
