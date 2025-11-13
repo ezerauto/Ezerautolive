@@ -17,6 +17,7 @@ import { Link } from "wouter";
 import { Car, Truck, Package, CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { CreateVehicleDialog } from "@/components/CreateVehicleDialog";
 import { BulkImportDialog } from "@/components/BulkImportDialog";
+import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -200,10 +201,10 @@ export default function Inventory() {
                           ${Number(vehicle.minimumPrice || 0).toLocaleString()}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusInfo.label}
-                          </Badge>
+                          <VehicleStatusDropdown 
+                            vehicleId={vehicle.id}
+                            currentStatus={vehicle.status}
+                          />
                         </TableCell>
                         <TableCell className="text-center font-mono" data-testid={`text-days-${vehicle.id}`}>
                           {daysInInventory > 0 ? daysInInventory : '-'}
