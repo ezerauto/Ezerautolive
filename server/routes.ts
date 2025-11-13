@@ -2170,22 +2170,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
-    const objectStorageService = new ObjectStorageService();
-    const userId = (req.user as any)?.claims?.sub;
-    const { directory, contentType } = req.body;
-    
-    // Generate upload URL and object ID
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    
-    // Extract object ID from the upload URL to construct the public access path
-    // The upload URL is for: ${privateObjectDir}/uploads/${objectId}
-    // The public URL should be: /objects/uploads/${objectId}
-    const urlObj = new URL(uploadURL);
-    const pathParts = urlObj.pathname.split('/');
-    const objectId = pathParts[pathParts.length - 1];
-    const publicURL = `/objects/uploads/${objectId}`;
-    
-    res.json({ uploadURL, publicURL });
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const userId = (req.user as any)?.claims?.sub;
+      const { directory, contentType } = req.body;
+      
+      // Generate upload URL and object ID
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      
+      // Extract object ID from the upload URL to construct the public access path
+      // The upload URL is for: ${privateObjectDir}/uploads/${objectId}
+      // The public URL should be: /objects/uploads/${objectId}
+      const urlObj = new URL(uploadURL);
+      const pathParts = urlObj.pathname.split('/');
+      const objectId = pathParts[pathParts.length - 1];
+      const publicURL = `/objects/uploads/${objectId}`;
+      
+      res.json({ uploadURL, publicURL });
+    } catch (error: any) {
+      console.error("Upload URL generation failed:", error.message);
+      res.status(503).json({ 
+        error: "Upload service temporarily unavailable. Please try again in a moment.",
+        message: error.message 
+      });
+    }
   });
 
   // Partners routes
