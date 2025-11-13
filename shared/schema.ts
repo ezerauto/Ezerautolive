@@ -216,7 +216,7 @@ export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title", { length: 200 }).notNull(),
   type: varchar("type", { length: 100 }).notNull(),
-  status: varchar("status", { length: 50 }).notNull().default('active'),
+  status: varchar("status", { length: 50 }).notNull().default('draft'),
   parties: text("parties").array(),
   contractDate: timestamp("contract_date").notNull(),
   documentUrl: text("document_url"),
@@ -225,6 +225,9 @@ export const contracts = pgTable("contracts", {
   salePrice: decimal("sale_price", { precision: 10, scale: 2 }),
   profit: decimal("profit", { precision: 10, scale: 2 }),
   notes: text("notes"),
+  requiresSignatures: boolean("requires_signatures").notNull().default(true),
+  signatureStatus: varchar("signature_status", { length: 50 }).default('pending'),
+  fullySignedAt: timestamp("fully_signed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -236,7 +239,7 @@ export const contracts = pgTable("contracts", {
     .where(sql`${table.relatedVehicleId} IS NOT NULL`),
 ]);
 
-export const contractsRelations = relations(contracts, ({ one }) => ({
+export const contractsRelations = relations(contracts, ({ one, many }) => ({
   relatedShipment: one(shipments, {
     fields: [contracts.relatedShipmentId],
     references: [shipments.id],
@@ -245,6 +248,8 @@ export const contractsRelations = relations(contracts, ({ one }) => ({
     fields: [contracts.relatedVehicleId],
     references: [vehicles.id],
   }),
+  requiredSigners: many(contractRequiredSigners),
+  signatures: many(contractSignatures),
 }));
 
 export const insertContractSchema = createInsertSchema(contracts).omit({
@@ -260,7 +265,41 @@ export const insertContractSchema = createInsertSchema(contracts).omit({
 export type InsertContract = z.infer<typeof insertContractSchema>;
 export type Contract = typeof contracts.$inferSelect;
 
-// Contract Signatures table - tracks digital signatures with DOB verification
+// Contract Required Signers table - defines who must sign each contract
+export const contractRequiredSigners = pgTable("contract_required_signers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").references(() => contracts.id, { onDelete: 'cascade' }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  role: varchar("role", { length: 100 }),
+  sequenceOrder: integer("sequence_order").notNull().default(0),
+  signedAt: timestamp("signed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("uniq_contract_user_signer")
+    .on(table.contractId, table.userId),
+]);
+
+export const contractRequiredSignersRelations = relations(contractRequiredSigners, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractRequiredSigners.contractId],
+    references: [contracts.id],
+  }),
+  user: one(users, {
+    fields: [contractRequiredSigners.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertContractRequiredSignerSchema = createInsertSchema(contractRequiredSigners).omit({
+  id: true,
+  createdAt: true,
+  signedAt: true,
+});
+
+export type InsertContractRequiredSigner = z.infer<typeof insertContractRequiredSignerSchema>;
+export type ContractRequiredSigner = typeof contractRequiredSigners.$inferSelect;
+
+// Contract Signatures table - tracks digital signatures with DOB verification and document integrity
 export const contractSignatures = pgTable("contract_signatures", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   contractId: varchar("contract_id").references(() => contracts.id, { onDelete: 'cascade' }).notNull(),
@@ -269,7 +308,9 @@ export const contractSignatures = pgTable("contract_signatures", {
   dobVerified: boolean("dob_verified").notNull().default(false),
   ipAddress: varchar("ip_address", { length: 45 }),
   userAgent: text("user_agent"),
-  signatureData: text("signature_data"),
+  documentHash: varchar("document_hash", { length: 64 }),
+  documentSnapshotUrl: text("document_snapshot_url"),
+  typedName: varchar("typed_name", { length: 200 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

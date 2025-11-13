@@ -11,6 +11,8 @@ import {
   phaseDocuments,
   profitDistributions,
   profitDistributionEntries,
+  contractSignatures,
+  contractRequiredSigners,
   type User,
   type UpsertUser,
   type Vehicle,
@@ -35,6 +37,10 @@ import {
   type InsertProfitDistribution,
   type ProfitDistributionEntry,
   type InsertProfitDistributionEntry,
+  type ContractSignature,
+  type InsertContractSignature,
+  type ContractRequiredSigner,
+  type InsertContractRequiredSigner,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -67,6 +73,7 @@ export interface IStorage {
   // Contract operations
   createContract(contract: InsertContract): Promise<Contract>;
   getContract(id: string): Promise<Contract | undefined>;
+  getContractWithSignatures(id: string): Promise<(Contract & { signatures: ContractSignature[], requiredSigners: (ContractRequiredSigner & { user: User | null })[] }) | undefined>;
   listContracts(): Promise<Contract[]>;
   listShipmentContracts(shipmentId: string): Promise<Contract[]>;
   getShipmentContractByType(shipmentId: string, type: string): Promise<Contract | undefined>;
@@ -74,6 +81,16 @@ export interface IStorage {
   getVehicleContractByType(vehicleId: string, type: string): Promise<Contract | undefined>;
   updateContract(id: string, updates: Partial<InsertContract>): Promise<Contract>;
   deleteContract(id: string): Promise<void>;
+  
+  // Contract signature operations
+  createContractSignature(signature: InsertContractSignature): Promise<ContractSignature>;
+  listContractSignatures(contractId: string): Promise<ContractSignature[]>;
+  hasUserSigned(contractId: string, userId: string): Promise<boolean>;
+  
+  // Contract required signer operations
+  createContractRequiredSigner(signer: InsertContractRequiredSigner): Promise<ContractRequiredSigner>;
+  listContractRequiredSigners(contractId: string): Promise<(ContractRequiredSigner & { user: User | null })[]>;
+  updateRequiredSignerSignedAt(contractId: string, userId: string, signedAt: Date): Promise<ContractRequiredSigner>;
   
   // Cost operations
   createCost(cost: InsertCost): Promise<Cost>;
@@ -319,6 +336,76 @@ export class DatabaseStorage implements IStorage {
 
   async deleteContract(id: string): Promise<void> {
     await db.delete(contracts).where(eq(contracts.id, id));
+  }
+
+  async getContractWithSignatures(id: string): Promise<(Contract & { signatures: ContractSignature[], requiredSigners: (ContractRequiredSigner & { user: User | null })[] }) | undefined> {
+    const contract = await this.getContract(id);
+    if (!contract) return undefined;
+    
+    const signatures = await this.listContractSignatures(id);
+    const requiredSigners = await this.listContractRequiredSigners(id);
+    
+    return { ...contract, signatures, requiredSigners };
+  }
+
+  // Contract signature operations
+  async createContractSignature(signatureData: InsertContractSignature): Promise<ContractSignature> {
+    const [signature] = await db.insert(contractSignatures).values(signatureData).returning();
+    return signature;
+  }
+
+  async listContractSignatures(contractId: string): Promise<ContractSignature[]> {
+    return db.select().from(contractSignatures).where(eq(contractSignatures.contractId, contractId)).orderBy(desc(contractSignatures.signedAt));
+  }
+
+  async hasUserSigned(contractId: string, userId: string): Promise<boolean> {
+    const [signature] = await db
+      .select()
+      .from(contractSignatures)
+      .where(and(
+        eq(contractSignatures.contractId, contractId),
+        eq(contractSignatures.userId, userId)
+      ))
+      .limit(1);
+    return !!signature;
+  }
+
+  // Contract required signer operations
+  async createContractRequiredSigner(signerData: InsertContractRequiredSigner): Promise<ContractRequiredSigner> {
+    const [signer] = await db.insert(contractRequiredSigners).values(signerData).returning();
+    return signer;
+  }
+
+  async listContractRequiredSigners(contractId: string): Promise<(ContractRequiredSigner & { user: User | null })[]> {
+    const signers = await db
+      .select({
+        id: contractRequiredSigners.id,
+        contractId: contractRequiredSigners.contractId,
+        userId: contractRequiredSigners.userId,
+        role: contractRequiredSigners.role,
+        sequenceOrder: contractRequiredSigners.sequenceOrder,
+        signedAt: contractRequiredSigners.signedAt,
+        createdAt: contractRequiredSigners.createdAt,
+        user: users,
+      })
+      .from(contractRequiredSigners)
+      .leftJoin(users, eq(contractRequiredSigners.userId, users.id))
+      .where(eq(contractRequiredSigners.contractId, contractId))
+      .orderBy(contractRequiredSigners.sequenceOrder);
+    
+    return signers;
+  }
+
+  async updateRequiredSignerSignedAt(contractId: string, userId: string, signedAt: Date): Promise<ContractRequiredSigner> {
+    const [signer] = await db
+      .update(contractRequiredSigners)
+      .set({ signedAt })
+      .where(and(
+        eq(contractRequiredSigners.contractId, contractId),
+        eq(contractRequiredSigners.userId, userId)
+      ))
+      .returning();
+    return signer;
   }
 
   // Cost operations
