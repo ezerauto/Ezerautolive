@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  dateOfBirth: timestamp("date_of_birth"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -258,6 +259,39 @@ export const insertContractSchema = createInsertSchema(contracts).omit({
 
 export type InsertContract = z.infer<typeof insertContractSchema>;
 export type Contract = typeof contracts.$inferSelect;
+
+// Contract Signatures table - tracks digital signatures with DOB verification
+export const contractSignatures = pgTable("contract_signatures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").references(() => contracts.id, { onDelete: 'cascade' }).notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  signedAt: timestamp("signed_at").defaultNow().notNull(),
+  dobVerified: boolean("dob_verified").notNull().default(false),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  signatureData: text("signature_data"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const contractSignaturesRelations = relations(contractSignatures, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractSignatures.contractId],
+    references: [contracts.id],
+  }),
+  user: one(users, {
+    fields: [contractSignatures.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertContractSignatureSchema = createInsertSchema(contractSignatures).omit({
+  id: true,
+  createdAt: true,
+  signedAt: true,
+});
+
+export type InsertContractSignature = z.infer<typeof insertContractSignatureSchema>;
+export type ContractSignature = typeof contractSignatures.$inferSelect;
 
 // Costs table
 export const costs = pgTable("costs", {
