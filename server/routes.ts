@@ -16,9 +16,12 @@ import {
   insertContractTemplateSchema,
   insertContractWorkflowSchema,
   insertWorkflowPhaseSchema,
-  insertPhaseDocumentSchema
+  insertPhaseDocumentSchema,
+  insertDealerCenterImportSchema
 } from "@shared/schema";
 import { createHash } from "crypto";
+import Papa from "papaparse";
+import multer from "multer";
 
 const GOAL_AMOUNT = 150000;
 
@@ -814,6 +817,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error in bulk vehicle import:", error);
       res.status(500).json({ message: error.message || "Failed to import vehicles" });
+    }
+  });
+
+  // Helper to clean currency/numeric strings from CSV
+  function cleanNumericString(value: string | null | undefined): string | null {
+    if (!value) return null;
+    return String(value).replace(/[$,]/g, '').trim();
+  }
+
+  // DealerCenter CSV import endpoint with upload tracking
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  
+  app.post('/api/dealercenter/import', isAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+      const file = req.file;
+      const userId = (req as any).user.claims.sub;
+      
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { lotName, runNumber } = req.body;
+      
+      if (!lotName || !runNumber) {
+        return res.status(400).json({ message: "lotName and runNumber are required" });
+      }
+
+      const csvContent = file.buffer.toString('utf-8');
+      
+      const parseResult = Papa.parse(csvContent, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header: string) => header.trim().toLowerCase().replace(/\s+/g, '_')
+      });
+
+      if (parseResult.errors.length > 0) {
+        return res.status(400).json({
+          message: "CSV parsing failed",
+          errors: parseResult.errors.map((e: any) => `Row ${e.row}: ${e.message}`)
+        });
+      }
+
+      const rows = parseResult.data as any[];
+      const totalRows = rows.length;
+      
+      const importRecord = await storage.createDealerCenterImport({
+        fileName: file.originalname,
+        uploadedBy: userId,
+        totalRows,
+        successRows: 0,
+        errorRows: 0,
+        status: 'processing',
+        errors: null
+      });
+
+      const createdVehicles = [];
+      const rowErrors: Array<{ row: number; vin: string; error: string }> = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const yearStr = cleanNumericString(row.year);
+          const yearValue = yearStr ? parseInt(yearStr) : null;
+          
+          const odometerStr = cleanNumericString(row.mileage || row.odometer);
+          const odometerValue = odometerStr ? parseInt(odometerStr) : null;
+          
+          if (!row.vin && !row.stock_number) {
+            throw new Error("Missing required field: VIN or stock_number");
+          }
+          if (!row.make) throw new Error("Missing required field: make");
+          if (!row.model) throw new Error("Missing required field: model");
+          if (!yearValue || isNaN(yearValue)) throw new Error("Invalid or missing year");
+          if (!row.purchase_price && !row.cost && !row.price) {
+            throw new Error("Missing required field: purchase_price/cost/price");
+          }
+          
+          const purchasePrice = cleanNumericString(row.purchase_price || row.cost || row.price);
+          const reconCost = cleanNumericString(row.recon_cost || row.reconditioning) || '0';
+          const targetSalePrice = cleanNumericString(row.target_price || row.asking_price);
+          
+          if (!purchasePrice) {
+            throw new Error("Invalid purchase price format");
+          }
+          
+          const vehicleData = {
+            vin: row.vin || row.stock_number,
+            make: row.make,
+            model: row.model,
+            trim: row.trim || null,
+            year: yearValue,
+            purchasePrice,
+            reconCost,
+            purchaseDate: row.purchase_date ? new Date(row.purchase_date) : new Date(),
+            targetSalePrice,
+            status: 'in_stock',
+            lotLocation: lotName,
+            odometer: odometerValue && !isNaN(odometerValue) ? odometerValue : null,
+            color: row.color || row.exterior_color || null,
+            condition: row.condition || null,
+            titleStatus: row.title_status || row.title || null,
+            titleUrl: row.title_url || null,
+            notes: row.notes || null
+          };
+
+          const validated = bulkImportVehicleSchema.parse(vehicleData);
+          validated.notes = validated.notes ? 
+            `DealerCenter Run #${runNumber} | ${validated.notes}` : 
+            `DealerCenter Run #${runNumber}`;
+          
+          const vehicle = await storage.createVehicle(validated);
+          createdVehicles.push(vehicle);
+        } catch (error: any) {
+          const errorMessage = error.errors 
+            ? error.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
+            : error.message;
+          rowErrors.push({ 
+            row: i + 1, 
+            vin: row.vin || row.stock_number || 'Unknown',
+            error: errorMessage 
+          });
+        }
+      }
+
+      await storage.updateDealerCenterImport(importRecord.id, {
+        successRows: createdVehicles.length,
+        errorRows: rowErrors.length,
+        status: rowErrors.length === totalRows ? 'failed' : rowErrors.length > 0 ? 'partial' : 'completed',
+        errors: rowErrors.length > 0 ? rowErrors as any : null
+      });
+
+      res.status(201).json({
+        importId: importRecord.id,
+        totalRows,
+        successCount: createdVehicles.length,
+        errorCount: rowErrors.length,
+        status: rowErrors.length === totalRows ? 'failed' : rowErrors.length > 0 ? 'partial' : 'completed',
+        vehicles: createdVehicles,
+        errors: rowErrors
+      });
+    } catch (error: any) {
+      console.error("Error in DealerCenter CSV import:", error);
+      res.status(500).json({ message: error.message || "Failed to import CSV" });
+    }
+  });
+
+  app.get('/api/dealercenter/imports', isAuthenticated, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const imports = await storage.listDealerCenterImports({ limit });
+      res.json(imports);
+    } catch (error) {
+      console.error("Error fetching DealerCenter imports:", error);
+      res.status(500).json({ message: "Failed to fetch imports" });
+    }
+  });
+
+  app.get('/api/dealercenter/imports/:id', isAuthenticated, async (req, res) => {
+    try {
+      const importRecord = await storage.getDealerCenterImport(req.params.id);
+      if (!importRecord) {
+        return res.status(404).json({ message: "Import record not found" });
+      }
+      res.json(importRecord);
+    } catch (error) {
+      console.error("Error fetching import record:", error);
+      res.status(500).json({ message: "Failed to fetch import record" });
     }
   });
 
