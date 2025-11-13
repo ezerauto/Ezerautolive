@@ -6,6 +6,12 @@ This is a professional web-based dashboard for tracking a vehicle import partner
 
 The application tracks a profit-sharing arrangement calculated at the shipment level. During the reinvestment phase (until $150K inventory), 60% of profit is reinvested for inventory, with the remaining 40% split equally (20% each to Dominick and Tony). After reaching $150K inventory, profits are split 50/50. This provides comprehensive visibility into vehicle costs, sale prices, payments, and profit distribution between partners.
 
+## Recent Changes
+
+### November 13, 2025
+- **Fixed Projected Sales & Profits Data Sync Issue**: Refactored `/api/analytics/projections` endpoint to use shared `calculateVehicleTotalCosts` utility from `costCalculation.ts`, eliminating 47 lines of duplicate cost calculation logic. This ensures projected sales/profits now sync with actual data and follow the ledger-only calculation principle system-wide.
+- **Sales Contract Workflow**: Implemented complete sales contract requirement for marking vehicles as sold, including validation for sale date and sale price, auto-population of vehicle sale fields from contract, and automatic profit distribution generation.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
