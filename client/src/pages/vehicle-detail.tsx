@@ -12,6 +12,9 @@ import type { Vehicle, Contract } from "@shared/schema";
 import { EditVehicleDialog } from "@/components/EditVehicleDialog";
 import { VehicleSalesContractDialog } from "@/components/VehicleSalesContractDialog";
 import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
+import { VehicleWorkflowStepper } from "@/components/VehicleWorkflowStepper";
+import { ExportChecklistCard } from "@/components/ExportChecklistCard";
+import { ValuationProfitabilityCard } from "@/components/ValuationProfitabilityCard";
 
 const statusConfig = {
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
@@ -141,6 +144,10 @@ export default function VehicleDetail() {
         onOpenChange={setContractDialogOpen}
       />
 
+      <div className="mb-6">
+        <VehicleWorkflowStepper vehicle={vehicle} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -258,6 +265,10 @@ export default function VehicleDetail() {
         </Card>
 
         <div className="space-y-6">
+          <ValuationProfitabilityCard vehicle={vehicle} />
+
+          <ExportChecklistCard vehicle={vehicle} />
+
           <Card>
             <CardHeader>
               <CardTitle>Purchase Details</CardTitle>
