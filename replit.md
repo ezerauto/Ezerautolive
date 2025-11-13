@@ -24,6 +24,15 @@ The application tracks a profit-sharing arrangement calculated at the shipment l
   - Uploaded real legal documents: MIPA Master Consignment Agreement, Per-Vehicle Sale Closure, Personal Vehicle Custody Agreement, Vehicle Receipt & Inspection Certificate
   - Smart document preview: PDFs embedded in iframe, DOCX files show download interface, images displayed inline
   - All contract types (partnership, arrival inspection, sale closure, custody) now clickable and navigate to detail view with document preview
+- **Vehicle Status Dropdown Component**: Implemented easy-to-use status management with smart workflow protection:
+  - Created VehicleStatusDropdown component with icons for each status (In Transit, In Stock, Sold)
+  - Integrated into inventory table and vehicle detail page
+  - Easy transitions: in_transit ↔ in_stock work instantly with success toast notifications
+  - Guarded "sold" status: requires completed sales contract with document, sale date, and sale price
+  - Backend validation enforces contract requirement server-side (prevents API bypass)
+  - Frontend validation provides immediate feedback with detailed error messages
+  - Fixed updateVehicleSchema to use .partial() for all fields, enabling status-only PATCH updates
+  - End-to-end tested and verified all workflows work correctly
 
 ## User Preferences
 
