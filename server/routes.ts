@@ -799,6 +799,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/payments/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Schema for partial payment updates with proper date coercion
+      const updatePaymentSchema = z.object({
+        status: z.enum(['pending', 'paid', 'overdue']).optional(),
+        datePaid: z.coerce.date().optional().nullable(),
+        paymentMethod: z.string().optional().nullable(),
+        referenceNumber: z.string().optional().nullable(),
+        proofUrl: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      });
+      
+      const updates = updatePaymentSchema.parse(req.body);
+      
+      // If marking as paid, automatically set datePaid to now if not provided
+      if (updates.status === 'paid' && !updates.datePaid) {
+        updates.datePaid = new Date();
+      }
+      
+      const payment = await storage.updatePayment(id, updates);
+      res.json(payment);
+    } catch (error: any) {
+      console.error("Error updating payment:", error);
+      res.status(400).json({ message: error.message || "Failed to update payment" });
+    }
+  });
+
   // Contract routes
   app.get('/api/contracts', isAuthenticated, async (req, res) => {
     try {

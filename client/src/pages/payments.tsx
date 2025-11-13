@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -11,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Payment } from "@shared/schema";
 
 const statusConfig = {
@@ -20,8 +23,32 @@ const statusConfig = {
 };
 
 export default function Payments() {
+  const { toast } = useToast();
   const { data: payments, isLoading } = useQuery<Payment[]>({
     queryKey: ["/api/payments"],
+  });
+
+  const markAsPaidMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      return apiRequest('PATCH', `/api/payments/${paymentId}`, {
+        status: 'paid'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
+      toast({
+        title: "Payment marked as paid",
+        description: "The payment status has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update payment status",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -78,6 +105,7 @@ export default function Payments() {
                     <TableHead className="font-semibold">Date Paid</TableHead>
                     <TableHead className="font-semibold">Method</TableHead>
                     <TableHead className="font-semibold">Reference #</TableHead>
+                    <TableHead className="font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -112,6 +140,20 @@ export default function Payments() {
                         </TableCell>
                         <TableCell>{payment.paymentMethod || '-'}</TableCell>
                         <TableCell className="font-mono text-xs">{payment.referenceNumber || '-'}</TableCell>
+                        <TableCell>
+                          {(payment.status === 'pending' || payment.status === 'overdue') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => markAsPaidMutation.mutate(payment.id)}
+                              disabled={markAsPaidMutation.isPending}
+                              data-testid={`button-mark-paid-${payment.id}`}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Mark as Paid
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
