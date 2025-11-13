@@ -59,10 +59,14 @@ export const shipments = pgTable("shipments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const shipmentsRelations = relations(shipments, ({ many }) => ({
+export const shipmentsRelations = relations(shipments, ({ one, many }) => ({
   vehicles: many(vehicles),
   costs: many(costs),
   contracts: many(contracts),
+  customsClearance: one(customsClearance, {
+    fields: [shipments.id],
+    references: [customsClearance.shipmentId],
+  }),
 }));
 
 export const insertShipmentSchema = createInsertSchema(shipments).omit({
@@ -83,16 +87,23 @@ export const vehicles = pgTable("vehicles", {
   year: integer("year").notNull(),
   make: varchar("make", { length: 100 }).notNull(),
   model: varchar("model", { length: 100 }).notNull(),
+  trim: varchar("trim", { length: 100 }),
   vin: varchar("vin", { length: 17 }).notNull().unique(),
   odometer: integer("odometer"),
   color: varchar("color", { length: 50 }),
+  condition: varchar("condition", { length: 50 }),
+  lotLocation: varchar("lot_location", { length: 100 }),
   purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(),
+  reconCost: decimal("recon_cost", { precision: 10, scale: 2 }).default('0'),
   purchaseDate: timestamp("purchase_date").notNull(),
   purchaseLocation: text("purchase_location"),
   billOfSaleUrl: text("bill_of_sale_url"),
+  titleStatus: varchar("title_status", { length: 50 }),
+  titleUrl: text("title_url"),
   photoUrls: text("photo_urls").array(),
   status: varchar("status", { length: 50 }).notNull().default('in_transit'),
   targetSalePrice: decimal("target_sale_price", { precision: 10, scale: 2 }),
+  targetSalePriceHnl: decimal("target_sale_price_hnl", { precision: 10, scale: 2 }),
   minimumPrice: decimal("minimum_price", { precision: 10, scale: 2 }),
   actualSalePrice: decimal("actual_sale_price", { precision: 10, scale: 2 }),
   saleDate: timestamp("sale_date"),
@@ -100,6 +111,7 @@ export const vehicles = pgTable("vehicles", {
   buyerId: varchar("buyer_id", { length: 100 }),
   dateArrived: timestamp("date_arrived"),
   dateShipped: timestamp("date_shipped"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -111,6 +123,7 @@ export const vehiclesRelations = relations(vehicles, ({ one, many }) => ({
   }),
   payments: many(payments),
   costs: many(costs),
+  valuations: many(valuations),
 }));
 
 const optionalDate = z.preprocess(
@@ -141,16 +154,23 @@ export const bulkImportVehicleSchema = z.object({
   vin: z.string().min(1, "VIN is required"),
   make: z.string().min(1, "Make is required"),
   model: z.string().min(1, "Model is required"),
+  trim: z.string().optional().nullable(),
   year: z.number().int().min(1900).max(2100),
   purchasePrice: z.string().or(z.number()).transform(val => String(val)),
+  reconCost: z.string().or(z.number()).transform(val => val ? String(val) : '0'),
   purchaseDate: z.coerce.date().optional().default(() => new Date()),
   targetSalePrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
   status: z.string().optional().default('in_stock'),
   shipmentId: z.string().nullable().optional(),
   odometer: z.number().int().nullable().optional(),
   color: z.string().optional().nullable(),
+  condition: z.string().optional().nullable(),
+  lotLocation: z.string().optional().nullable(),
   purchaseLocation: z.string().optional().nullable(),
   minimumPrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
+  titleStatus: z.string().optional().nullable(),
+  titleUrl: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 export const updateVehicleSchema = insertVehicleSchema.partial();
@@ -577,6 +597,160 @@ export const insertPhaseDocumentSchema = createInsertSchema(phaseDocuments).omit
 export type InsertPhaseDocument = z.infer<typeof insertPhaseDocumentSchema>;
 export type PhaseDocument = typeof phaseDocuments.$inferSelect;
 
+// Partners table (Royal Shipping, trucking companies, customs brokers)
+export const partners = pgTable("partners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  contactInfo: jsonb("contact_info"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("uniq_partner_name_type").on(table.name, table.type),
+]);
+
+export const insertPartnerSchema = createInsertSchema(partners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPartner = z.infer<typeof insertPartnerSchema>;
+export type Partner = typeof partners.$inferSelect;
+
+// FX Rates table (USD to HNL conversion)
+export const fxRates = pgTable("fx_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseCurrency: varchar("base_currency", { length: 3 }).notNull().default('USD'),
+  targetCurrency: varchar("target_currency", { length: 3 }).notNull().default('HNL'),
+  asOf: timestamp("as_of").notNull().defaultNow(),
+  rate: decimal("rate", { precision: 10, scale: 4 }).notNull(),
+  source: varchar("source", { length: 100 }).default('manual'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_fx_rates_as_of").on(table.asOf),
+  uniqueIndex("uniq_fx_rate").on(table.baseCurrency, table.targetCurrency, table.asOf),
+]);
+
+export const insertFxRateSchema = createInsertSchema(fxRates).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  asOf: z.coerce.date().optional(),
+});
+
+export type InsertFxRate = z.infer<typeof insertFxRateSchema>;
+export type FxRate = typeof fxRates.$inferSelect;
+
+// Valuations table (Honduras market valuations)
+export const valuations = pgTable("valuations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vehicleId: varchar("vehicle_id").references(() => vehicles.id, { onDelete: 'cascade' }).notNull(),
+  authorUserId: varchar("author_user_id").references(() => users.id, { onDelete: 'set null' }),
+  hondurasEstPriceHnl: decimal("honduras_est_price_hnl", { precision: 10, scale: 2 }).notNull(),
+  basisText: text("basis_text"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_valuations_vehicle_id").on(table.vehicleId),
+]);
+
+export const valuationsRelations = relations(valuations, ({ one }) => ({
+  vehicle: one(vehicles, {
+    fields: [valuations.vehicleId],
+    references: [vehicles.id],
+  }),
+  author: one(users, {
+    fields: [valuations.authorUserId],
+    references: [users.id],
+  }),
+}));
+
+export const insertValuationSchema = createInsertSchema(valuations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertValuation = z.infer<typeof insertValuationSchema>;
+export type Valuation = typeof valuations.$inferSelect;
+
+// DealerCenter Imports table (CSV import tracking)
+export const dealerCenterImports = pgTable("dealercenter_imports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  uploadedBy: varchar("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  fileName: varchar("file_name", { length: 255 }),
+  fileUrl: text("file_url"),
+  rowCount: integer("row_count").notNull().default(0),
+  successCount: integer("success_count").notNull().default(0),
+  errorCount: integer("error_count").notNull().default(0),
+  errors: jsonb("errors"),
+  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_dealercenter_uploaded_at").on(table.uploadedAt),
+]);
+
+export const dealerCenterImportsRelations = relations(dealerCenterImports, ({ one }) => ({
+  uploader: one(users, {
+    fields: [dealerCenterImports.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertDealerCenterImportSchema = createInsertSchema(dealerCenterImports).omit({
+  id: true,
+  createdAt: true,
+  uploadedAt: true,
+});
+
+export type InsertDealerCenterImport = z.infer<typeof insertDealerCenterImportSchema>;
+export type DealerCenterImport = typeof dealerCenterImports.$inferSelect;
+
+// Customs Clearance table (Roatán port clearance tracking)
+export const customsClearance = pgTable("customs_clearance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shipmentId: varchar("shipment_id").references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  port: varchar("port", { length: 100 }).notNull().default('Roatán'),
+  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  brokerId: varchar("broker_id").references(() => partners.id, { onDelete: 'set null' }),
+  dutiesHnl: decimal("duties_hnl", { precision: 10, scale: 2 }).default('0'),
+  feesHnl: decimal("fees_hnl", { precision: 10, scale: 2 }).default('0'),
+  fxRateSnapshot: decimal("fx_rate_snapshot", { precision: 10, scale: 4 }),
+  documents: jsonb("documents"),
+  submittedAt: timestamp("submitted_at"),
+  clearedAt: timestamp("cleared_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_customs_shipment_id").on(table.shipmentId),
+  uniqueIndex("uniq_customs_per_shipment").on(table.shipmentId),
+]);
+
+export const customsClearanceRelations = relations(customsClearance, ({ one }) => ({
+  shipment: one(shipments, {
+    fields: [customsClearance.shipmentId],
+    references: [shipments.id],
+  }),
+  broker: one(partners, {
+    fields: [customsClearance.brokerId],
+    references: [partners.id],
+  }),
+}));
+
+export const insertCustomsClearanceSchema = createInsertSchema(customsClearance).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  submittedAt: z.coerce.date().optional().nullable(),
+  clearedAt: z.coerce.date().optional().nullable(),
+});
+
+export type InsertCustomsClearance = z.infer<typeof insertCustomsClearanceSchema>;
+export type CustomsClearance = typeof customsClearance.$inferSelect;
+
 // Status types
 export type ShipmentStatus = 'in_transit' | 'arrived' | 'customs_cleared' | 'completed';
 export type VehicleStatus = 'in_transit' | 'in_stock' | 'sold';
@@ -589,3 +763,6 @@ export type DocumentStatus = 'pending' | 'sent_for_signing' | 'signed' | 'declin
 export type WorkflowType = 'shipment' | 'vehicle_sale' | 'operational_renewal';
 export type PhaseType = 'pre_shipment' | 'arrival_inspection' | 'sale_closure' | 'operational_renewal';
 export type DocumentType = 'price_agreement' | 'inspection_receipt' | 'sale_contract' | 'operational_agreement' | 'customs_declaration' | 'cost_breakdown' | 'wire_transfer_info' | 'other';
+export type PartnerType = 'shipping' | 'trucking' | 'customs_broker' | 'other';
+export type CustomsStatus = 'pending' | 'documents_submitted' | 'duties_assessed' | 'paid' | 'cleared';
+export type TitleStatus = 'clean' | 'salvage' | 'rebuilt' | 'pending' | 'unknown';

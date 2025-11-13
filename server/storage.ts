@@ -13,6 +13,11 @@ import {
   profitDistributionEntries,
   contractSignatures,
   contractRequiredSigners,
+  partners,
+  fxRates,
+  valuations,
+  dealerCenterImports,
+  customsClearance,
   type User,
   type UpsertUser,
   type Vehicle,
@@ -41,6 +46,16 @@ import {
   type InsertContractSignature,
   type ContractRequiredSigner,
   type InsertContractRequiredSigner,
+  type Partner,
+  type InsertPartner,
+  type FxRate,
+  type InsertFxRate,
+  type Valuation,
+  type InsertValuation,
+  type DealerCenterImport,
+  type InsertDealerCenterImport,
+  type CustomsClearance,
+  type InsertCustomsClearance,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -132,6 +147,37 @@ export interface IStorage {
   getPhaseDocument(id: string): Promise<PhaseDocument | undefined>;
   listPhaseDocuments(phaseId: string): Promise<PhaseDocument[]>;
   updatePhaseDocument(id: string, updates: Partial<InsertPhaseDocument>): Promise<PhaseDocument>;
+  
+  // Partner operations
+  createPartner(partner: InsertPartner): Promise<Partner>;
+  getPartner(id: string): Promise<Partner | undefined>;
+  listPartners(filter?: { type?: string; isActive?: boolean }): Promise<Partner[]>;
+  updatePartner(id: string, updates: Partial<InsertPartner>): Promise<Partner>;
+  
+  // FX Rate operations
+  createFxRate(rate: InsertFxRate): Promise<FxRate>;
+  getFxRate(id: string): Promise<FxRate | undefined>;
+  getLatestFxRate(baseCurrency: string, targetCurrency: string): Promise<FxRate | undefined>;
+  getFxRateForDate(baseCurrency: string, targetCurrency: string, date: Date): Promise<FxRate | undefined>;
+  listFxRates(filter?: { baseCurrency?: string; targetCurrency?: string; from?: Date; to?: Date }): Promise<FxRate[]>;
+  
+  // Valuation operations
+  createValuation(valuation: InsertValuation): Promise<Valuation>;
+  listValuationsByVehicle(vehicleId: string): Promise<Valuation[]>;
+  getLatestValuation(vehicleId: string): Promise<Valuation | undefined>;
+  deleteValuation(id: string): Promise<void>;
+  
+  // DealerCenter Import operations
+  createDealerCenterImport(importRecord: InsertDealerCenterImport): Promise<DealerCenterImport>;
+  getDealerCenterImport(id: string): Promise<DealerCenterImport | undefined>;
+  listDealerCenterImports(filter?: { status?: string; limit?: number }): Promise<DealerCenterImport[]>;
+  updateDealerCenterImport(id: string, updates: Partial<InsertDealerCenterImport>): Promise<DealerCenterImport>;
+  
+  // Customs Clearance operations
+  upsertCustomsClearance(shipmentId: string, data: Omit<InsertCustomsClearance, 'shipmentId'>): Promise<CustomsClearance>;
+  getCustomsClearanceByShipment(shipmentId: string): Promise<CustomsClearance | undefined>;
+  listCustomsClearance(filter?: { status?: string; port?: string }): Promise<CustomsClearance[]>;
+  deleteCustomsClearance(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -617,6 +663,198 @@ export class DatabaseStorage implements IStorage {
       .where(eq(profitDistributionEntries.id, id))
       .returning();
     return entry;
+  }
+
+  // Partner operations
+  async createPartner(partnerData: InsertPartner): Promise<Partner> {
+    const [partner] = await db.insert(partners).values(partnerData).returning();
+    return partner;
+  }
+
+  async getPartner(id: string): Promise<Partner | undefined> {
+    const [partner] = await db.select().from(partners).where(eq(partners.id, id));
+    return partner;
+  }
+
+  async listPartners(filter?: { type?: string; isActive?: boolean }): Promise<Partner[]> {
+    if (filter?.type && filter?.isActive !== undefined) {
+      return db.select().from(partners)
+        .where(and(eq(partners.type, filter.type), eq(partners.isActive, filter.isActive)))
+        .orderBy(desc(partners.createdAt));
+    }
+    if (filter?.type) {
+      return db.select().from(partners).where(eq(partners.type, filter.type)).orderBy(desc(partners.createdAt));
+    }
+    if (filter?.isActive !== undefined) {
+      return db.select().from(partners).where(eq(partners.isActive, filter.isActive)).orderBy(desc(partners.createdAt));
+    }
+    return db.select().from(partners).orderBy(desc(partners.createdAt));
+  }
+
+  async updatePartner(id: string, updates: Partial<InsertPartner>): Promise<Partner> {
+    const [partner] = await db
+      .update(partners)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(partners.id, id))
+      .returning();
+    return partner;
+  }
+
+  // FX Rate operations
+  async createFxRate(rateData: InsertFxRate): Promise<FxRate> {
+    const [rate] = await db
+      .insert(fxRates)
+      .values(rateData)
+      .onConflictDoUpdate({
+        target: [fxRates.baseCurrency, fxRates.targetCurrency, fxRates.asOf],
+        set: {
+          rate: rateData.rate,
+          source: rateData.source,
+        },
+      })
+      .returning();
+    return rate;
+  }
+
+  async getFxRate(id: string): Promise<FxRate | undefined> {
+    const [rate] = await db.select().from(fxRates).where(eq(fxRates.id, id));
+    return rate;
+  }
+
+  async getLatestFxRate(baseCurrency: string, targetCurrency: string): Promise<FxRate | undefined> {
+    const [rate] = await db
+      .select()
+      .from(fxRates)
+      .where(and(
+        eq(fxRates.baseCurrency, baseCurrency),
+        eq(fxRates.targetCurrency, targetCurrency)
+      ))
+      .orderBy(desc(fxRates.asOf))
+      .limit(1);
+    return rate;
+  }
+
+  async getFxRateForDate(baseCurrency: string, targetCurrency: string, date: Date): Promise<FxRate | undefined> {
+    const [rate] = await db
+      .select()
+      .from(fxRates)
+      .where(and(
+        eq(fxRates.baseCurrency, baseCurrency),
+        eq(fxRates.targetCurrency, targetCurrency),
+        eq(fxRates.asOf, date)
+      ))
+      .limit(1);
+    return rate;
+  }
+
+  async listFxRates(filter?: { baseCurrency?: string; targetCurrency?: string; from?: Date; to?: Date }): Promise<FxRate[]> {
+    const conditions = [];
+    if (filter?.baseCurrency) {
+      conditions.push(eq(fxRates.baseCurrency, filter.baseCurrency));
+    }
+    if (filter?.targetCurrency) {
+      conditions.push(eq(fxRates.targetCurrency, filter.targetCurrency));
+    }
+    
+    if (conditions.length > 0) {
+      return db.select().from(fxRates).where(and(...conditions)).orderBy(desc(fxRates.asOf));
+    }
+    return db.select().from(fxRates).orderBy(desc(fxRates.asOf));
+  }
+
+  // Valuation operations
+  async createValuation(valuationData: InsertValuation): Promise<Valuation> {
+    const [valuation] = await db.insert(valuations).values(valuationData).returning();
+    return valuation;
+  }
+
+  async listValuationsByVehicle(vehicleId: string): Promise<Valuation[]> {
+    return db.select().from(valuations).where(eq(valuations.vehicleId, vehicleId)).orderBy(desc(valuations.createdAt));
+  }
+
+  async getLatestValuation(vehicleId: string): Promise<Valuation | undefined> {
+    const [valuation] = await db
+      .select()
+      .from(valuations)
+      .where(eq(valuations.vehicleId, vehicleId))
+      .orderBy(desc(valuations.createdAt))
+      .limit(1);
+    return valuation;
+  }
+
+  async deleteValuation(id: string): Promise<void> {
+    await db.delete(valuations).where(eq(valuations.id, id));
+  }
+
+  // DealerCenter Import operations
+  async createDealerCenterImport(importData: InsertDealerCenterImport): Promise<DealerCenterImport> {
+    const [importRecord] = await db.insert(dealerCenterImports).values(importData).returning();
+    return importRecord;
+  }
+
+  async getDealerCenterImport(id: string): Promise<DealerCenterImport | undefined> {
+    const [importRecord] = await db.select().from(dealerCenterImports).where(eq(dealerCenterImports.id, id));
+    return importRecord;
+  }
+
+  async listDealerCenterImports(filter?: { status?: string; limit?: number }): Promise<DealerCenterImport[]> {
+    const query = filter?.status
+      ? db.select().from(dealerCenterImports).where(eq(dealerCenterImports.status, filter.status)).orderBy(desc(dealerCenterImports.createdAt))
+      : db.select().from(dealerCenterImports).orderBy(desc(dealerCenterImports.createdAt));
+    
+    if (filter?.limit) {
+      return query.limit(filter.limit);
+    }
+    return query;
+  }
+
+  async updateDealerCenterImport(id: string, updates: Partial<InsertDealerCenterImport>): Promise<DealerCenterImport> {
+    const [importRecord] = await db
+      .update(dealerCenterImports)
+      .set(updates)
+      .where(eq(dealerCenterImports.id, id))
+      .returning();
+    return importRecord;
+  }
+
+  // Customs Clearance operations
+  async upsertCustomsClearance(shipmentId: string, data: Omit<InsertCustomsClearance, 'shipmentId'>): Promise<CustomsClearance> {
+    const [clearance] = await db
+      .insert(customsClearance)
+      .values({ ...data, shipmentId })
+      .onConflictDoUpdate({
+        target: customsClearance.shipmentId,
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return clearance;
+  }
+
+  async getCustomsClearanceByShipment(shipmentId: string): Promise<CustomsClearance | undefined> {
+    const [clearance] = await db.select().from(customsClearance).where(eq(customsClearance.shipmentId, shipmentId));
+    return clearance;
+  }
+
+  async listCustomsClearance(filter?: { status?: string; port?: string }): Promise<CustomsClearance[]> {
+    if (filter?.status && filter?.port) {
+      return db.select().from(customsClearance)
+        .where(and(eq(customsClearance.status, filter.status), eq(customsClearance.port, filter.port)))
+        .orderBy(desc(customsClearance.createdAt));
+    }
+    if (filter?.status) {
+      return db.select().from(customsClearance).where(eq(customsClearance.status, filter.status)).orderBy(desc(customsClearance.createdAt));
+    }
+    if (filter?.port) {
+      return db.select().from(customsClearance).where(eq(customsClearance.port, filter.port)).orderBy(desc(customsClearance.createdAt));
+    }
+    return db.select().from(customsClearance).orderBy(desc(customsClearance.createdAt));
+  }
+
+  async deleteCustomsClearance(id: string): Promise<void> {
+    await db.delete(customsClearance).where(eq(customsClearance.id, id));
   }
 }
 
