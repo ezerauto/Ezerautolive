@@ -137,25 +137,29 @@ export default function Contracts() {
             ) : (
               <div className="space-y-4">
                 {groupedContracts.inspections.map((contract) => {
-                  const statusInfo = statusConfig[contract.status as keyof typeof statusConfig];
+                  const displaySignatureStatus = contract.requiresSignatures && contract.signatureStatus;
+                  const statusInfo = displaySignatureStatus 
+                    ? signatureStatusConfig[contract.signatureStatus as keyof typeof signatureStatusConfig]
+                    : statusConfig[contract.status as keyof typeof statusConfig];
                   const StatusIcon = statusInfo.icon;
                   return (
-                    <div
-                      key={contract.id}
-                      className="p-4 rounded-lg border border-border hover-elevate"
-                      data-testid={`contract-${contract.id}`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold">{contract.title}</h4>
-                        <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusInfo.label}
-                        </Badge>
+                    <Link key={contract.id} href={`/contracts/${contract.id}`}>
+                      <div
+                        className="p-4 rounded-lg border border-border hover-elevate cursor-pointer"
+                        data-testid={`contract-${contract.id}`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold">{contract.title}</h4>
+                          <Badge variant="secondary" className={`${statusInfo.color} uppercase text-xs`}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(contract.contractDate).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(contract.contractDate).toLocaleDateString()}
-                      </p>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -179,38 +183,47 @@ export default function Contracts() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {groupedContracts.saleClosures.map((contract) => (
-                  <div
-                    key={contract.id}
-                    className="p-4 rounded-lg border border-border hover-elevate"
-                    data-testid={`contract-${contract.id}`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-semibold">{contract.title}</h4>
-                      <Badge variant="secondary" className="bg-success/10 text-success uppercase text-xs">
-                        Completed
-                      </Badge>
-                    </div>
-                    <Separator className="my-3" />
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Sale Price:</span>
-                        <span className="font-mono font-semibold">
-                          ${Number(contract.salePrice || 0).toLocaleString()}
-                        </span>
+                {groupedContracts.saleClosures.map((contract) => {
+                  const displaySignatureStatus = contract.requiresSignatures && contract.signatureStatus;
+                  const statusInfo = displaySignatureStatus 
+                    ? signatureStatusConfig[contract.signatureStatus as keyof typeof signatureStatusConfig]
+                    : statusConfig[contract.status as keyof typeof statusConfig];
+                  const StatusIcon = statusInfo?.icon || CheckCircle2;
+                  return (
+                    <Link key={contract.id} href={`/contracts/${contract.id}`}>
+                      <div
+                        className="p-4 rounded-lg border border-border hover-elevate cursor-pointer"
+                        data-testid={`contract-${contract.id}`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-semibold">{contract.title}</h4>
+                          <Badge variant="secondary" className={statusInfo?.color || "bg-success/10 text-success"}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {statusInfo?.label || "Completed"}
+                          </Badge>
+                        </div>
+                        <Separator className="my-3" />
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Sale Price:</span>
+                            <span className="font-mono font-semibold">
+                              ${Number(contract.salePrice || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Profit:</span>
+                            <span className="font-mono font-semibold text-success">
+                              ${Number(contract.profit || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-2">
+                            {new Date(contract.contractDate).toLocaleDateString()}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Profit:</span>
-                        <span className="font-mono font-semibold text-success">
-                          ${Number(contract.profit || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {new Date(contract.contractDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
