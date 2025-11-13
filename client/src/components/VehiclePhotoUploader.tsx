@@ -61,23 +61,24 @@ export function VehiclePhotoUploader({ vehicleId, currentPhotos }: VehiclePhotoU
           throw new Error(`File ${file.name} is too large (max 10MB)`);
         }
 
-        // Get upload URL from server
-        const response = await apiRequest("POST", "/api/objects/upload", {
-          directory: `vehicles/${vehicleId}/photos`,
-          contentType: file.type,
-        });
-        const { uploadURL, publicURL } = await response.json() as { uploadURL: string; publicURL: string };
+        // Upload directly through server
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('directory', `vehicles/${vehicleId}/photos`);
 
-        // Upload file to object storage
-        await fetch(uploadURL, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type,
-          },
+        const response = await fetch("/api/objects/upload-direct", {
+          method: "POST",
+          body: formData,
+          credentials: 'include',
         });
 
-        newPhotoUrls.push(publicURL || uploadURL);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Upload failed');
+        }
+
+        const { publicURL } = await response.json() as { publicURL: string };
+        newPhotoUrls.push(publicURL);
       }
 
       const updatedPhotos = [...uploadedFiles, ...newPhotoUrls];

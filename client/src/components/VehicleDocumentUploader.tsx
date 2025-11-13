@@ -64,23 +64,23 @@ export function VehicleDocumentUploader({ vehicleId, billOfSaleUrl, titleUrl }: 
         throw new Error('File size must be less than 10MB');
       }
 
-      // Get upload URL from server
-      const response = await apiRequest("POST", "/api/objects/upload", {
-        directory: `vehicles/${vehicleId}/documents`,
-        contentType: file.type,
-      });
-      const { uploadURL, publicURL } = await response.json() as { uploadURL: string; publicURL: string };
+      // Upload directly through server
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('directory', `vehicles/${vehicleId}/documents`);
 
-      // Upload file to object storage
-      await fetch(uploadURL, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
+      const response = await fetch("/api/objects/upload-direct", {
+        method: "POST",
+        body: formData,
+        credentials: 'include',
       });
 
-      const finalUrl = publicURL || uploadURL;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+
+      const { publicURL: finalUrl } = await response.json() as { publicURL: string };
       
       // Update vehicle with document URL
       if (documentType === 'billOfSale') {
