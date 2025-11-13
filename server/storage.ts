@@ -239,9 +239,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateVehicle(id: string, updates: any): Promise<Vehicle> {
-    // Filter out undefined values to prevent null constraint violations
+    // Filter out undefined and null values to prevent constraint violations
+    // Only include fields that have actual values
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(updates).filter(([key, value]) => {
+        // Always allow these fields to be updated even if null
+        const allowNullFields = ['shipmentId', 'lotLocation', 'notes', 'color', 'trim', 'condition'];
+        if (allowNullFields.includes(key) && value === null) {
+          return true;
+        }
+        // Filter out undefined and null for other fields
+        return value !== undefined && value !== null;
+      })
     );
     
     const [vehicle] = await db
