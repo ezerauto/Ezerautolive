@@ -1,6 +1,5 @@
-import Papa from 'papaparse';
 import { db } from '../db';
-import { vehicles } from '@db/schema';
+import { vehicles, type NewVehicle } from '@db/schema';
 
 type VehicleImportData = {
   year?: number;
