@@ -2327,6 +2327,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document export routes for customs agents
+  
+  // GET /api/shipments/:id/documents/customs-broker
+  // Returns: Titles + Bills of Sale for all vehicles in shipment
+  app.get('/api/shipments/:id/documents/customs-broker', isAuthenticated, async (req, res) => {
+    try {
+      const shipment = await storage.getShipment(req.params.id);
+      if (!shipment) {
+        return res.status(404).json({ message: "Shipment not found" });
+      }
+      
+      const vehicles = await storage.listVehicles();
+      const shipmentVehicles = vehicles.filter(v => v.shipmentId === req.params.id);
+      
+      const documents = {
+        shipmentId: shipment.id,
+        shipmentName: `${shipment.origin} → ${shipment.destination}`,
+        agentType: 'Customs Broker',
+        requiredDocuments: ['Titles', 'Bills of Sale'],
+        vehicles: shipmentVehicles.map(v => ({
+          vehicleId: v.id,
+          vin: v.vin,
+          makeModel: `${v.year} ${v.make} ${v.model}`,
+          documents: {
+            title: v.documentUrls?.find(d => d.type === 'title')?.url || null,
+            billOfSale: v.documentUrls?.find(d => d.type === 'bill_of_sale')?.url || null,
+          },
+          hasMissingDocuments: !v.documentUrls?.find(d => d.type === 'title') || 
+                               !v.documentUrls?.find(d => d.type === 'bill_of_sale')
+        }))
+      };
+      
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching customs broker documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  
+  // GET /api/shipments/:id/documents/import-agent
+  // Returns: BOL + Titles + Photos + Bills of Sale
+  app.get('/api/shipments/:id/documents/import-agent', isAuthenticated, async (req, res) => {
+    try {
+      const shipment = await storage.getShipment(req.params.id);
+      if (!shipment) {
+        return res.status(404).json({ message: "Shipment not found" });
+      }
+      
+      const vehicles = await storage.listVehicles();
+      const shipmentVehicles = vehicles.filter(v => v.shipmentId === req.params.id);
+      
+      const documents = {
+        shipmentId: shipment.id,
+        shipmentName: `${shipment.origin} → ${shipment.destination}`,
+        agentType: 'Import Agent',
+        requiredDocuments: ['Bill of Lading', 'Titles', 'Photos', 'Bills of Sale'],
+        shipmentDocuments: {
+          billOfLading: shipment.billOfLadingUrl || null,
+        },
+        vehicles: shipmentVehicles.map(v => ({
+          vehicleId: v.id,
+          vin: v.vin,
+          makeModel: `${v.year} ${v.make} ${v.model}`,
+          documents: {
+            title: v.documentUrls?.find(d => d.type === 'title')?.url || null,
+            billOfSale: v.documentUrls?.find(d => d.type === 'bill_of_sale')?.url || null,
+            photos: v.photoUrls || [],
+          },
+          photoCount: v.photoUrls?.length || 0,
+          hasMissingDocuments: !v.documentUrls?.find(d => d.type === 'title') || 
+                               !v.documentUrls?.find(d => d.type === 'bill_of_sale') ||
+                               !v.photoUrls || v.photoUrls.length === 0
+        })),
+        hasMissingBOL: !shipment.billOfLadingUrl
+      };
+      
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching import agent documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
   // Partners routes
   app.get('/api/partners', isAuthenticated, async (req, res) => {
     try {

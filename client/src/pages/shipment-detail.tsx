@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Truck, Package, CheckCircle2, Ship, Car, ExternalLink } from "lucide-react";
 import { ShipmentContracts } from "@/components/ShipmentContracts";
+import { ShipmentDocumentExport } from "@/components/ShipmentDocumentExport";
 import type { Shipment, Vehicle } from "@shared/schema";
 
 const statusConfig = {
@@ -177,6 +178,8 @@ export default function ShipmentDetail() {
             <ShipmentContracts shipmentId={id!} />
           </CardContent>
         </Card>
+
+        <ShipmentDocumentExport shipmentId={id!} />
 
         <div className="space-y-6">
           <Card>
