@@ -3,10 +3,9 @@
  * Integrated Ecosystem Design Tokens
  */
 
-// Spacing Scale (4/8/12/24px equivalents via Tailwind)
+// Spacing Scale (4/8/12/24px equivalents via Tailwind with responsive variants)
 export const SPACING = {
-  SECTION: 'p-8',      // Desktop section padding
-  SECTION_MOBILE: 'px-4 py-6', // Mobile section padding
+  SECTION: 'px-4 py-6 sm:px-6 sm:py-8 lg:px-8', // Responsive section padding
   CARD: 'p-6',         // Card content padding
   CARD_COMPACT: 'p-4', // Compact card padding
   GRID_GAP: 'gap-6',   // Grid gap between elements

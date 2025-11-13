@@ -33,7 +33,7 @@ export function MetricCard({
         {Icon && <Icon className={`${ICON_SIZES.MD} text-muted-foreground`} />}
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold font-mono" data-testid={`${testId}-value`}>
+        <div className={`text-3xl font-bold font-mono ${className}`} data-testid={`${testId}-value`}>
           {value}
         </div>
         {(subtitle || trend) && (

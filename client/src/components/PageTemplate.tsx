@@ -21,7 +21,7 @@ export function PageTemplate({
   className = "",
 }: PageTemplateProps) {
   return (
-    <div className={`min-h-full ${SPACING.SECTION} ${SPACING.SECTION_MOBILE} ${className}`}>
+    <div className={`min-h-full ${SPACING.SECTION} ${className}`}>
       {/* Breadcrumb Navigation */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <div className="mb-6">

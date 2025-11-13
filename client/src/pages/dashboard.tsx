@@ -13,9 +13,13 @@ import {
   CheckCircle,
   Clock,
   TrendingDown,
+  RefreshCw,
 } from "lucide-react";
 import { ProjectedSalesWidget } from "@/components/ProjectedSalesWidget";
 import { formatDualCurrency } from "@/lib/currency";
+import { PageTemplate } from "@/components/PageTemplate";
+import { MetricCard } from "@/components/MetricCard";
+import { SPACING } from "@/lib/design-system";
 import {
   BarChart,
   Bar,
@@ -56,105 +60,68 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <div className="mb-8">
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-4 w-96" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <PageTemplate
+        title="Overview"
+        subtitle="Financial overview and business metrics"
+        breadcrumbs={[{ label: "Dashboard" }]}
+      >
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 ${SPACING.GRID_GAP}`}>
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <CardHeader className="pb-3">
-                <Skeleton className="h-4 w-32" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-24 mb-2" />
-                <Skeleton className="h-3 w-20" />
-              </CardContent>
+            <Card key={i} className={SPACING.CARD}>
+              <Skeleton className="h-4 w-32 mb-4" />
+              <Skeleton className="h-8 w-24 mb-2" />
+              <Skeleton className="h-3 w-20" />
             </Card>
           ))}
         </div>
-      </div>
+      </PageTemplate>
     );
   }
 
   const progress = metrics ? (metrics.progressTo150K / GOAL_AMOUNT) * 100 : 0;
 
+  const kpiCards = (
+    <>
+      <MetricCard
+        title="Total Investment"
+        value={formatDualCurrency(metrics?.totalInvestment || 0).usd}
+        subtitle="All-time capital invested"
+        icon={DollarSign}
+        testId="card-total-investment"
+      />
+      <MetricCard
+        title="Current Inventory"
+        value={formatDualCurrency(metrics?.currentInventoryValue || 0).usd}
+        subtitle="Unsold vehicles cost"
+        icon={Package}
+        testId="card-inventory-value"
+      />
+      <MetricCard
+        title="Total Gross Profit"
+        value={formatDualCurrency(metrics?.totalGrossProfit || 0).usd}
+        subtitle="Lifetime earnings"
+        icon={TrendingUp}
+        testId="card-gross-profit"
+      />
+      <MetricCard
+        title="Reinvestment Fund"
+        value={formatDualCurrency(metrics?.progressTo150K || 0).usd}
+        subtitle={`${progress.toFixed(0)}% to $150K goal`}
+        icon={RefreshCw}
+        testId="card-progress"
+      />
+    </>
+  );
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">The Books</h1>
-        <p className="text-muted-foreground">Financial overview of the family business</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card data-testid="card-total-investment">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Investment</CardTitle>
-            <DollarSign className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono" data-testid="text-total-investment">
-              {formatDualCurrency(metrics?.totalInvestment || 0).usd}
-            </div>
-            <p className="text-sm font-mono text-muted-foreground">
-              {formatDualCurrency(metrics?.totalInvestment || 0).hnl}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">All-time capital invested</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-inventory-value">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Inventory Value</CardTitle>
-            <Package className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono" data-testid="text-inventory-value">
-              {formatDualCurrency(metrics?.currentInventoryValue || 0).usd}
-            </div>
-            <p className="text-sm font-mono text-muted-foreground">
-              {formatDualCurrency(metrics?.currentInventoryValue || 0).hnl}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Unsold vehicles cost</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-gross-profit">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Gross Profit</CardTitle>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-mono text-success" data-testid="text-gross-profit">
-              {formatDualCurrency(metrics?.totalGrossProfit || 0).usd}
-            </div>
-            <p className="text-sm font-mono text-muted-foreground">
-              {formatDualCurrency(metrics?.totalGrossProfit || 0).hnl}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">All-time profit from sales</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-reinvestment-status">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Partnership Phase</CardTitle>
-            <Target className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <Badge
-              variant={metrics?.reinvestmentPhase ? "default" : "secondary"}
-              className="text-xs uppercase mb-2"
-              data-testid="badge-phase-status"
-            >
-              {metrics?.reinvestmentPhase ? "Reinvestment (60% + 20/20)" : "Post-$150K (50/50)"}
-            </Badge>
-            <p className="text-xs text-muted-foreground">{metrics?.reinvestmentPhase ? "60% reinvested, 40% split" : "Profits split evenly"}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mb-8" data-testid="card-goal-progress">
+    <PageTemplate
+      title="Overview"
+      subtitle="Financial overview and business metrics"
+      breadcrumbs={[{ label: "Dashboard" }]}
+      kpiCards={kpiCards}
+    >
+      {/* Goal Progress Card */}
+      <Card data-testid="card-goal-progress">
         <CardHeader>
           <CardTitle>Progress to $150K / L 3.9M Inventory Goal</CardTitle>
         </CardHeader>
@@ -340,6 +307,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
-    </div>
+    </PageTemplate>
   );
 }
