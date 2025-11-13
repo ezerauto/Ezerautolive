@@ -51,6 +51,48 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const GOAL_AMOUNT = 150000;
 
+// Standard shipping costs per vehicle
+const SHIPPING_COSTS = {
+  denverToFlorida: 1133, // Ground transport: Denver → Florida
+  floridaToRoatan: 1300,  // Ocean freight: Florida → Roatan
+};
+
+// Auto-calculate shipping costs based on route
+function calculateShippingCosts(origin: string, destination: string, vehicleCount: number) {
+  const costs = {
+    groundTransportCost: 0,
+    oceanFreightCost: 0,
+    totalPerVehicle: 0,
+    total: 0
+  };
+  
+  const originLower = origin?.toLowerCase() || '';
+  const destLower = destination?.toLowerCase() || '';
+  
+  // Denver → Florida route (ground transport)
+  if (originLower.includes('denver') && destLower.includes('florida')) {
+    costs.groundTransportCost = SHIPPING_COSTS.denverToFlorida;
+    costs.totalPerVehicle = SHIPPING_COSTS.denverToFlorida;
+  }
+  
+  // Florida → Roatan route (ocean freight)
+  if (originLower.includes('florida') && (destLower.includes('roatan') || destLower.includes('honduras'))) {
+    costs.oceanFreightCost = SHIPPING_COSTS.floridaToRoatan;
+    costs.totalPerVehicle = SHIPPING_COSTS.floridaToRoatan;
+  }
+  
+  // Denver → Roatan route (both ground + ocean)
+  if (originLower.includes('denver') && (destLower.includes('roatan') || destLower.includes('honduras'))) {
+    costs.groundTransportCost = SHIPPING_COSTS.denverToFlorida;
+    costs.oceanFreightCost = SHIPPING_COSTS.floridaToRoatan;
+    costs.totalPerVehicle = SHIPPING_COSTS.denverToFlorida + SHIPPING_COSTS.floridaToRoatan;
+  }
+  
+  costs.total = costs.totalPerVehicle * vehicleCount;
+  
+  return costs;
+}
+
 // Rate limiting for DOB verification (prevents guessing attacks)
 const dobVerificationAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_DOB_ATTEMPTS = 3;
@@ -346,6 +388,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/shipments', isAuthenticated, async (req, res) => {
     try {
       const validated = insertShipmentSchema.parse(req.body);
+      
+      // Auto-calculate shipping costs based on route
+      const vehicleCount = validated.vehicleCount || 0;
+      const costs = calculateShippingCosts(validated.origin, validated.destination, vehicleCount);
+      
+      // Auto-populate costs if not provided
+      if (costs.groundTransportCost > 0 && !validated.groundTransportCost) {
+        validated.groundTransportCost = costs.groundTransportCost.toString();
+      }
+      if (costs.oceanFreightCost > 0 && !validated.oceanFreightCost) {
+        validated.oceanFreightCost = costs.oceanFreightCost.toString();
+      }
+      
       const shipment = await storage.createShipment(validated);
       res.status(201).json(shipment);
     } catch (error: any) {
