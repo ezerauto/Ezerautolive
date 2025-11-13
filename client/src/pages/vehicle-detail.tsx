@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Car, Truck, Package, CheckCircle2, FileText, AlertCircle } from "lucide-react";
+import { ArrowLeft, Car, Truck, Package, CheckCircle2, FileText, AlertCircle, Search, Wrench } from "lucide-react";
 import type { Vehicle, Contract } from "@shared/schema";
 import { EditVehicleDialog } from "@/components/EditVehicleDialog";
 import { VehicleSalesContractDialog } from "@/components/VehicleSalesContractDialog";
@@ -15,11 +15,17 @@ import { VehicleStatusDropdown } from "@/components/VehicleStatusDropdown";
 import { VehicleWorkflowStepper } from "@/components/VehicleWorkflowStepper";
 import { ExportChecklistCard } from "@/components/ExportChecklistCard";
 import { ValuationProfitabilityCard } from "@/components/ValuationProfitabilityCard";
+import { SaleLocationToggle } from "@/components/SaleLocationToggle";
+import { LempiraPricingCard } from "@/components/LempiraPricingCard";
+import { VehicleNotesEditor } from "@/components/VehicleNotesEditor";
 
 const statusConfig = {
+  acquired: { label: "Acquired", icon: CheckCircle2, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" },
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
   in_stock: { label: "In Stock", icon: Package, color: "bg-warning/10 text-warning" },
   sold: { label: "Sold", icon: CheckCircle2, color: "bg-success/10 text-success" },
+  inspection: { label: "Inspection", icon: Search, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300" },
+  not_working: { label: "Not Working", icon: Wrench, color: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300" },
 };
 
 export default function VehicleDetail() {
@@ -93,6 +99,10 @@ export default function VehicleDetail() {
             <p className="text-muted-foreground">VIN: {vehicle.vin}</p>
           </div>
           <div className="flex items-center gap-3">
+            <SaleLocationToggle
+              vehicleId={vehicle.id}
+              currentLocation={vehicle.saleLocation || 'export'}
+            />
             <EditVehicleDialog vehicle={vehicle} />
             <VehicleStatusDropdown
               vehicleId={vehicle.id}
@@ -265,6 +275,17 @@ export default function VehicleDetail() {
         </Card>
 
         <div className="space-y-6">
+          <LempiraPricingCard
+            vehicleId={vehicle.id}
+            currentPriceUsd={vehicle.targetSalePrice}
+            currentPriceHnl={vehicle.targetSalePriceHnl}
+          />
+
+          <VehicleNotesEditor
+            vehicleId={vehicle.id}
+            initialNotes={vehicle.notes}
+          />
+
           <ValuationProfitabilityCard vehicle={vehicle} />
 
           <ExportChecklistCard vehicle={vehicle} />

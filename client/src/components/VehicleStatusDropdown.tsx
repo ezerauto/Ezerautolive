@@ -10,13 +10,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Truck, Package, CheckCircle2 } from "lucide-react";
+import { Truck, Package, CheckCircle2, Search, Wrench } from "lucide-react";
 import type { Vehicle } from "@shared/schema";
 
 const statusConfig = {
+  acquired: { label: "Acquired", icon: CheckCircle2, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" },
   in_transit: { label: "In Transit", icon: Truck, color: "bg-primary/10 text-primary" },
   in_stock: { label: "In Stock", icon: Package, color: "bg-warning/10 text-warning" },
   sold: { label: "Sold", icon: CheckCircle2, color: "bg-success/10 text-success" },
+  inspection: { label: "Inspection", icon: Search, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300" },
+  not_working: { label: "Not Working", icon: Wrench, color: "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300" },
 };
 
 interface VehicleStatusDropdownProps {
@@ -129,6 +132,12 @@ export function VehicleStatusDropdown({ vehicleId, currentStatus, variant = "dro
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value="acquired" data-testid={`option-acquired-${vehicleId}`}>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-3 w-3" />
+            <span>Acquired</span>
+          </div>
+        </SelectItem>
         <SelectItem value="in_transit" data-testid={`option-in-transit-${vehicleId}`}>
           <div className="flex items-center gap-2">
             <Truck className="h-3 w-3" />
@@ -139,6 +148,18 @@ export function VehicleStatusDropdown({ vehicleId, currentStatus, variant = "dro
           <div className="flex items-center gap-2">
             <Package className="h-3 w-3" />
             <span>In Stock</span>
+          </div>
+        </SelectItem>
+        <SelectItem value="inspection" data-testid={`option-inspection-${vehicleId}`}>
+          <div className="flex items-center gap-2">
+            <Search className="h-3 w-3" />
+            <span>Inspection</span>
+          </div>
+        </SelectItem>
+        <SelectItem value="not_working" data-testid={`option-not-working-${vehicleId}`}>
+          <div className="flex items-center gap-2">
+            <Wrench className="h-3 w-3" />
+            <span>Not Working</span>
           </div>
         </SelectItem>
         <SelectItem value="sold" data-testid={`option-sold-${vehicleId}`}>

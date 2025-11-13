@@ -246,6 +246,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // FX Rate routes
+  app.get('/api/fx/usd-hnl', isAuthenticated, async (req, res) => {
+    try {
+      const fxRate = await storage.getLatestFxRate('USD', 'HNL');
+      if (!fxRate) {
+        return res.status(404).json({ message: "FX rate not found" });
+      }
+      res.json({ rate: fxRate.rate });
+    } catch (error) {
+      console.error("Error fetching FX rate:", error);
+      res.status(500).json({ message: "Failed to fetch FX rate" });
+    }
+  });
+
   // Leaderboard routes
   app.get('/api/leaderboards/sales', isAuthenticated, async (req, res) => {
     try {
@@ -844,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.status = updates.status.trim().toLowerCase().replace(/\s+/g, '_');
         
         // Validate against VehicleStatus enum
-        const validStatuses = ['acquired', 'in_transit', 'in_stock', 'sold'];
+        const validStatuses = ['acquired', 'in_transit', 'in_stock', 'sold', 'inspection', 'not_working'];
         if (!validStatuses.includes(updates.status)) {
           return res.status(400).json({
             message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
@@ -853,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // EZER Auto Export Checklist: Enforce requirements for Acquired → In Transit
+      // EZER Auto Export Checklist: Enforce requirements for Acquired → In Transit (export vehicles only)
       if (updates.status === 'in_transit') {
         const vehicle = await storage.getVehicle(req.params.id);
         if (!vehicle) {
@@ -862,9 +876,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Normalize existing vehicle status for comparison
         const currentStatus = vehicle.status?.trim().toLowerCase().replace(/\s+/g, '_');
+        const saleLocation = updates.saleLocation || vehicle.saleLocation || 'export';
         
-        // Only enforce export checklist if transitioning FROM "acquired" status
-        if (currentStatus === 'acquired') {
+        // Only enforce export checklist if:
+        // 1. Transitioning FROM "acquired" status AND
+        // 2. Vehicle is designated for EXPORT (not domestic sale)
+        if (currentStatus === 'acquired' && saleLocation === 'export') {
           const violations: string[] = [];
           
           // 1. Bill of sale required
@@ -895,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (violations.length > 0) {
             return res.status(422).json({
-              message: "Export checklist incomplete",
+              message: "Export checklist incomplete (export vehicles only)",
               code: "EXPORT_CHECKLIST_INCOMPLETE",
               violations: violations
             });

@@ -104,6 +104,7 @@ export const vehicles = pgTable("vehicles", {
   titleUrl: text("title_url"),
   photoUrls: text("photo_urls").array(),
   status: varchar("status", { length: 50 }).notNull().default('acquired'),
+  saleLocation: varchar("sale_location", { length: 20 }).default('export'),
   targetSalePrice: decimal("target_sale_price", { precision: 10, scale: 2 }),
   targetSalePriceHnl: decimal("target_sale_price_hnl", { precision: 10, scale: 2 }),
   minimumPrice: decimal("minimum_price", { precision: 10, scale: 2 }),
@@ -148,9 +149,11 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   dateArrived: optionalDate,
   saleDate: optionalDate,
   targetSalePrice: optionalDecimal,
+  targetSalePriceHnl: optionalDecimal,
   minimumPrice: optionalDecimal,
   actualSalePrice: optionalDecimal,
-  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold']).optional().default('acquired'),
+  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold', 'inspection', 'not_working']).optional().default('acquired'),
+  saleLocation: z.enum(['export', 'domestic']).optional().default('export'),
 });
 
 export const bulkImportVehicleSchema = z.object({
@@ -163,7 +166,8 @@ export const bulkImportVehicleSchema = z.object({
   reconCost: z.string().or(z.number()).transform(val => val ? String(val) : '0'),
   purchaseDate: z.coerce.date().optional().default(() => new Date()),
   targetSalePrice: z.string().or(z.number()).transform(val => val ? String(val) : null).nullable().optional(),
-  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold']).optional().default('acquired'),
+  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold', 'inspection', 'not_working']).optional().default('acquired'),
+  saleLocation: z.enum(['export', 'domestic']).optional().default('export'),
   shipmentId: z.string().nullable().optional(),
   odometer: z.number().int().nullable().optional(),
   color: z.string().optional().nullable(),
@@ -176,7 +180,24 @@ export const bulkImportVehicleSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-export const updateVehicleSchema = insertVehicleSchema.partial();
+export const updateVehicleSchema = createInsertSchema(vehicles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  purchaseDate: true,
+}).partial().extend({
+  purchaseDate: optionalDate,
+  dateShipped: optionalDate,
+  dateArrived: optionalDate,
+  saleDate: optionalDate,
+  targetSalePrice: optionalDecimal,
+  targetSalePriceHnl: optionalDecimal,
+  minimumPrice: optionalDecimal,
+  actualSalePrice: optionalDecimal,
+  status: z.enum(['acquired', 'in_transit', 'in_stock', 'sold', 'inspection', 'not_working']).optional(),
+  saleLocation: z.enum(['export', 'domestic']).optional(),
+  notes: z.string().optional().nullable(),
+});
 
 export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
 export type UpdateVehicle = z.infer<typeof updateVehicleSchema>;
