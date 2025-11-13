@@ -1,0 +1,175 @@
+Got it. Here’s a tight, paste-ready prompt that builds **EZER Auto’s Omaha → Denver → Roatán** platform with leaderboards, DealerCenter CSV imports, Honduras valuation/profit checks, and the full export workflow (Royal Shipping → bill of lading → trucker docs → Roatán customs).
+
+```text
+Build a full-stack, multi-tenant web app called “EZER Auto Operations” focused on:
+- Omaha sales
+- Denver procurement
+- Exports to Roatán, Honduras
+
+Architecture:
+- Backend: FastAPI + SQLAlchemy + Alembic, JWT auth (access+refresh), RBAC
+- DB: Postgres
+- File storage: S3-compatible (Cloudflare R2 ok). Use signed URLs.
+- Frontend: React (Vite) + Tailwind + simple component library; server returns JSON APIs
+- Background jobs: APScheduler (nightly FX rates, integrity checks, KPI snapshots)
+- Env: `.env.example` with all keys; production-ready config separated from dev
+
+Tenancy / Roles:
+- Tenants: {EZER Auto}
+- Roles: Owner, Sales (Omaha), Procurement (Denver), Logistics, Finance, Viewer
+- All tables include tenant_id; queries are always tenant-scoped
+
+Core Business Objects (tables):
+- users(id, email, password_hash, role, is_active)
+- partners(id, name, contact_info_json)            # e.g., Royal Shipping, Trucking Co.
+- fx_rates(id, as_of, usd_to_hnl)
+- vehicles(id, tenant_id, vin UNIQUE per tenant, make, model, trim, year, color, mileage, condition, lot_location, purchase_price_usd, recon_cost_usd, target_sale_price_usd, target_sale_price_hnl, status, notes, images[])
+- dealercenter_imports(id, uploaded_by, uploaded_at, file_url, row_count, errors_json)
+- shipments(id, tenant_id, name, origin, destination, depart_date, arrive_date_est, arrive_date_actual, status, ground_transport_cost_usd, ocean_freight_cost_usd, customs_broker_cost_usd, other_costs_usd, documents_json) 
+- shipment_vehicles(shipment_id, vehicle_id, cost_alloc_usd) # allocated proportional to purchase price unless overridden
+- contracts(id, tenant_id, vehicle_id, type, counterparty, status, signed_at, file_url, audit_json)  # sales, custody, etc.
+- payouts(id, tenant_id, vehicle_id, amount_usd, payee, status, created_at)
+- ledgers(id, tenant_id, vehicle_id, category, amount_usd, source, locked, ref_id, created_at, meta_json)
+- valuations(id, tenant_id, vehicle_id, author_user_id, honduras_est_price_hnl, basis_text, created_at) # Tony’s view of Honduras market value
+- customs_clearance(id, tenant_id, shipment_id, port="Roatán", status, broker, duties_hnl, fees_hnl, documents_json, cleared_at)
+- tasks(id, tenant_id, vehicle_id NULLABLE, shipment_id NULLABLE, title, checklist_json, assignee_role, due_date, status)
+
+Statuses (enforced transitions):
+- Vehicle: Acquired (Denver) → In Transit → Arrived (Roatán lot) → Listed (Omaha or Roatán) → Under Contract → Sold → Settled
+- Shipment: Planned → In Ground Transit → At Port (US) → On Vessel → Arrived (Roatán) → Customs → Released → Completed
+- Customs: Pending → Documents Submitted → Duties Assessed → Paid → Cleared
+
+DealerCenter CSV Import:
+- Build an importer that validates & maps common DealerCenter columns:
+  CSV headers to accept (case-insensitive):
+  VIN | Year | Make | Model | Trim | Odometer | Cost | Reconditioning | Lot | Status | Asking Price | Exterior Color | Interior Color | Purchase Date | Purchase Source
+- Mapping:
+  - VIN → vehicles.vin (required, unique per tenant)
+  - Year/Make/Model/Trim → vehicles.year/make/model/trim
+  - Odometer → vehicles.mileage
+  - Cost → vehicles.purchase_price_usd (required, ≥ 0)
+  - Reconditioning → vehicles.recon_cost_usd (default 0 if blank)
+  - Lot → vehicles.lot_location (e.g., Omaha, Denver)
+  - Status → vehicles.status (map free-text to canonical status)
+  - Asking Price → vehicles.target_sale_price_usd
+  - Colors → vehicles.color (exterior), note interior color in notes
+  - Purchase Date / Source → notes/meta_json
+- Validation:
+  - Reject rows missing VIN or with duplicate VIN in-tenant
+  - Report row-level errors back to UI; allow partial import (good rows in, bad rows logged)
+- After import: create ledger entries for purchase_price and recon_cost (locked=false)
+
+Honduras Valuation & Profitability Check:
+- For each vehicle, allow users (especially Tony) to post a valuation record:
+  honduras_est_price_hnl + free-text rationale
+- Convert valuation to USD using latest fx_rates
+- Compute Projected Profit (Honduras scenario):
+  projected_profit_usd = (valuation_hnl / fx) 
+                         – (purchase_price_usd + recon_cost_usd + allocated_shipment_costs_usd + estimated_customs_usd_equiv + handling_fees_usd)
+- UI shows a “Honduras Profitability” badge: Profitable / Break-even / Negative
+- Sorting & filters to find best export candidates fast
+
+Leaderboards (Omaha Sales & Denver Procurement):
+- Sales leaderboard (Omaha): 
+  - Ranking by units sold, gross profit per unit, total gross profit (date range filters)
+- Procurement leaderboard (Denver):
+  - Ranking by acquisition spread (target or realized resale – (purchase + recon + alloc shipment)), avg days-to-list, % vehicles meeting profitability threshold
+- Logistics leaderboard (Roatán):
+  - Turnover days (arrival→sale), customs-clearance time, docs-on-time %
+
+Export Workflow (Denver → US port → Roatán):
+- Required document checklist at vehicle and shipment level:
+  Vehicle export checklist (hard-enforced before shipment locks):
+    - Bill of Sale (uploaded doc) ✅
+    - Title: must be CLEAN or SALVAGE; REBUILT explicitly disallowed ✅
+    - Title scan uploaded ✅
+    - Photo set (min 6: front, rear, sides, interior, VIN tag) ✅
+- Shipment documents:
+    - Contact Royal Shipping (partners table with preset contact methods)
+    - Bill of Lading (BOL) — file upload required
+    - Trucker documents: pickup order, gate pass, insurance, driver ID (file uploads)
+    - Ocean booking confirmation
+- Customs (Roatán):
+    - Broker assigned from partners
+    - Required docs uploaded (BOL, invoices, title copies, packing list)
+    - Duties & fees recorded (HNL), system auto-converts to USD snapshot
+    - When “Cleared,” system unlocks “Release to Lot” and notifies Logistics role
+- Enforce gates:
+  - A vehicle cannot move to “In Transit” without the vehicle checklist complete
+  - A shipment cannot move to “On Vessel” without BOL present
+  - Customs cannot “Clear” without duties/fees posted
+
+Cost Allocation & Ledger (single source of truth):
+- Shipment costs (ground transport, ocean freight, broker, import fees, misc) create locked ledger entries at shipment level
+- On close, costs auto-allocate across shipment vehicles by purchase price proportion; create locked per-vehicle ledger entries
+- All reports, profit, and leaderboards read only from vehicle ledger
+
+Contracts & Sales (Omaha and Honduras):
+- Sales contract required before a vehicle can be set to Sold
+- Digital signature flow:
+  - DOB verification
+  - 3 attempts / 15 minutes limit
+  - Audit JSON: IP, user agent, timestamp
+- Sale posting:
+  - Posts sale_price (USD or HNL; store both with fx snapshot)
+  - Auto-calculates profit
+  - Creates payout records per partner based on current reinvestment phase:
+    - Until $150k reinvested: 60% reinvested, 20% Dominick, 20% Tony
+    - After threshold: 50/50
+  - Reinvestment tracker updates automatically
+
+Dashboards:
+- Executive: total inventory value; units by status; active shipments; profit MTD/QTD/YTD; reinvestment progress bar; alerts (docs missing, customs pending)
+- Sales (Omaha): pipeline, leaderboards, contracts pending signature
+- Procurement (Denver): new acquisitions, candidate vehicles for export (Honduras profitability), acquisition spread
+- Logistics (Roatán): shipments by status, customs queue, average clearance time, exceptions
+- Finance: ledger drilldowns, payouts due, duties & fees by shipment, currency exposure
+
+APIs (examples; implement all CRUD+filters):
+- POST /auth/login, POST /auth/refresh
+- GET /fx/latest
+- POST /dealercenter/import  (CSV upload → async validate → results)
+- GET /vehicles?status=&lot=&profitable_for_honduras=true
+- POST /vehicles/{id}/valuation  (honduras_est_price_hnl, basis_text)
+- POST /shipments, PATCH /shipments/{id}/status
+- POST /shipments/{id}/documents  (BOL, trucker docs)
+- POST /customs/{shipment_id}/submit, PATCH /customs/{id}/clear
+- POST /contracts/sales  (generates contract, handles signature flow)
+- POST /sales/close  (vehicle_id, sale_price_{usd|hnl}) → payouts + ledger updates
+- GET /leaderboards/sales?from=&to=
+- GET /leaderboards/procurement?from=&to=
+- GET /reports/margins?from=&to=
+
+UI Requirements:
+- CSV Import screen with row-level error table and downloadable error report
+- Vehicle detail with tabs: Overview, Costs (ledger), Docs, Valuation (Honduras), Sale
+- Shipment detail with docs uploader (BOL, trucker docs), vehicles list, cost allocation preview
+- Customs page with document checklist and duties/fees input (HNL) and auto USD conversion
+- Leaderboards page with filter by date range and role-specific metrics
+- Badges (Profitable/Break-even/Negative), status chips, and checklists with completion % bars
+
+Security & Ops:
+- JWT, refresh flow, password reset
+- 2FA toggle for Owner and Finance roles
+- Audit log (writes capture before/after JSON)
+- /healthz endpoint checks DB + storage
+- Nightly jobs: fx refresh (USD↔HNL), integrity scan (missing titles/BOL, unallocated costs, negative margins), KPI snapshots
+
+Seed Data:
+- Users: Owner (Dominick), Partner (Tony), roles for Sales/Procurement/Logistics
+- Partners: Royal Shipping, Default Trucking Co, Roatán Customs Broker
+- One demo shipment (Denver→Miami→Roatán) with 2–3 demo vehicles
+- One DealerCenter sample CSV and its mapped results
+- A few valuation examples from Tony to show profitability badges
+
+Deliverables:
+- Running in dev with `docker-compose` OR plain Replit, but DB migrations via Alembic
+- `.env.example` for DB, JWT_SECRET, S3_*, FX_API_KEY
+- README with:
+  - DealerCenter CSV format & mapping
+  - Status transition rules
+  - Checklist enforcement points
+  - How to add a new partner (e.g., different shipper)
+```
+
+If you want, I’ll also give you a **brand pass** (colors, fonts, logo slot, dashboard layout) so the UI screams EZER Auto the second you log in.
