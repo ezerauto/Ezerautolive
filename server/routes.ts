@@ -1146,44 +1146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const unsoldVehicles = allVehicles.filter(v => v.status !== 'sold' && v.targetSalePrice && Number(v.targetSalePrice) > 0);
       const soldVehicles = allVehicles.filter(v => v.status === 'sold');
       
-      // Calculate total costs per vehicle (same logic as dashboard)
-      const vehicleTotalCosts = new Map<string, number>();
-      
-      // Allocate shipment-level costs to vehicles proportionally
-      for (const shipment of allShipments) {
-        const shipmentVehicles = allVehicles.filter(v => v.shipmentId === shipment.id);
-        const shipmentCosts = allCosts.filter(c => c.shipmentId === shipment.id && !c.vehicleId);
-        
-        const totalShipmentCost = 
-          Number(shipment.groundTransportCost || 0) +
-          Number(shipment.customsBrokerFees || 0) +
-          Number(shipment.oceanFreightCost || 0) +
-          Number(shipment.importFees || 0) +
-          shipmentCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        
-        if (shipmentVehicles.length > 0 && totalShipmentCost > 0) {
-          const totalPurchaseValue = shipmentVehicles.reduce((sum, v) => sum + Number(v.purchasePrice || 0), 0);
-          
-          for (const vehicle of shipmentVehicles) {
-            const vehicleShare = totalPurchaseValue > 0 
-              ? (Number(vehicle.purchasePrice || 0) / totalPurchaseValue) * totalShipmentCost
-              : totalShipmentCost / shipmentVehicles.length;
-            
-            const current = vehicleTotalCosts.get(vehicle.id) || 0;
-            vehicleTotalCosts.set(vehicle.id, current + vehicleShare);
-          }
-        }
-      }
-      
-      // Add purchase price and vehicle-specific costs
-      for (const vehicle of allVehicles) {
-        let totalCost = Number(vehicle.purchasePrice || 0);
-        const vehicleCosts = allCosts.filter(c => c.vehicleId === vehicle.id);
-        totalCost += vehicleCosts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-        const allocatedShipmentCost = vehicleTotalCosts.get(vehicle.id) || 0;
-        totalCost += allocatedShipmentCost;
-        vehicleTotalCosts.set(vehicle.id, totalCost);
-      }
+      // Use shared cost calculation utility (ledger-only)
+      const { calculateVehicleTotalCosts } = await import('./services/costCalculation');
+      const vehicleTotalCosts = calculateVehicleTotalCosts(allVehicles, allCosts, allShipments);
       
       // Calculate cumulative reinvestment from sold vehicles
       let cumulativeReinvestment = 0;
