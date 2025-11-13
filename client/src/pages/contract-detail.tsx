@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, FileText, CheckCircle2, Clock, AlertCircle, Shield } from "lucide-react";
+import { ArrowLeft, FileText, CheckCircle2, Clock, AlertCircle, Shield, Download, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -195,6 +195,59 @@ export default function ContractDetail() {
               <h3 className="font-semibold mb-2">Notes</h3>
               <p className="text-sm text-muted-foreground" data-testid="text-contract-notes">{contract.notes}</p>
             </div>
+          )}
+
+          {contract.documentUrl && (
+            <>
+              <Separator />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Contract Document
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      data-testid="button-view-document"
+                    >
+                      <a href={contract.documentUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open in New Tab
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      data-testid="button-download-document"
+                    >
+                      <a href={contract.documentUrl} download>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+                <div className="border rounded-lg overflow-hidden bg-muted/20" data-testid="contract-document-preview">
+                  {contract.documentUrl.toLowerCase().endsWith('.pdf') ? (
+                    <iframe
+                      src={contract.documentUrl}
+                      className="w-full h-[600px]"
+                      title="Contract Document Preview"
+                    />
+                  ) : (
+                    <img
+                      src={contract.documentUrl}
+                      alt="Contract Document"
+                      className="w-full h-auto"
+                    />
+                  )}
+                </div>
+              </div>
+            </>
           )}
 
           <Separator />
